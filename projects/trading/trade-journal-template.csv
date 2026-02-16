@@ -1,0 +1,1 @@
+date,ticker,strategy,thesis,market_regime,iv_rank,dte,strike_structure,entry_debit_or_credit,max_risk,position_size,delta,theta,vega,profit_target,stop_rule,time_stop,exit_reason,pnl,rule_followed_yn,notes
