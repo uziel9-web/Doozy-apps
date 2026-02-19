@@ -5,36 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Doozy Trader</title>
   <style>
-    body { font-family: Arial, sans-serif; background:#0b1020; color:#e8ecff; margin:0; }
-    .wrap { max-width:900px; margin:0 auto; padding:20px; }
-    .card { background:#141b34; border:1px solid #283157; border-radius:12px; padding:14px; margin-bottom:10px; }
+    body { font-family: Arial, sans-serif; margin: 0; background: #0b1020; color: #e8ecff; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    h1 { margin: 0 0 6px; }
+    .sub { color: #a9b4e7; margin-bottom: 12px; }
+    .source { color:#8f9bd0; font-size:12px; margin-bottom:8px; }
+    .topline { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:8px 0; flex-wrap:wrap; }
+    .market-pill { font-size:12px; color:#c9d4ff; background:#111a3a; border:1px solid #2b386e; border-radius:999px; padding:6px 10px; }
+    .toolbar { display:flex; gap:8px; margin: 10px 0 12px; flex-wrap:wrap; }
+    .toolbar input, .toolbar select { background:#0f1630; border:1px solid #283157; color:#e8ecff; border-radius:8px; padding:10px; font-size:14px; }
+    .toolbar button { background:#26346a; border:1px solid #3a4a8e; color:#fff; border-radius:8px; padding:10px 12px; font-weight:700; }
+    .grid { display:grid; gap:10px; grid-template-columns:1fr; }
+    .card { background: #141b34; border: 1px solid #283157; border-radius: 10px; padding: 12px; }
     .muted { color:#a9b4e7; }
-    .warn { color:#ffd27f; }
     .ok { color:#77e4aa; }
-    button { background:#26346a; border:1px solid #3a4a8e; color:#fff; border-radius:8px; padding:8px 12px; }
-    input, select { background:#0f1630; border:1px solid #283157; color:#e8ecff; border-radius:8px; padding:8px; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    .warn { color:#ffd27f; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .quote-item { background:#141b34; border:1px solid #283157; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; }
+    .sym { font-weight:700; font-size:20px; }
+    .price { font-size:26px; line-height:1; text-align:left; }
+    .meta { color:#99a6dd; font-size:12px; }
+    .footer-brand { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7f8dc6; opacity: .9; pointer-events: none; }
+    pre { white-space: pre-wrap; word-break: break-word; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Doozy Trader (MVP)</h1>
-    <div class="muted">אפליקציית מסחר ייעודית נפרדת מהדשבורד. מצב התחלתי: Paper-only.</div>
+    <h1>Doozy Trader</h1>
+    <div class="sub">אפליקציית מסחר ייעודית בעיצוב MAG-7 · מצב נוכחי: Paper-only</div>
+    <div class="source">IBKR Gateway (Paper 7497) · Scanner & Suggestions בשלבי חיבור</div>
 
-    <div class="card">
-      <strong>מצב בטיחות</strong>
-      <div class="warn">Live trading כבוי כברירת מחדל. כל פקודה דורשת אישור כפול.</div>
+    <div class="topline">
+      <div id="ibkrStatus" class="market-pill">בודק חיבור...</div>
+      <div class="market-pill">Live Trading כבוי כברירת מחדל</div>
     </div>
 
     <div class="card">
-      <strong>IBKR Bridge</strong>
-      <div id="ibkrStatus" class="muted">בודק מצב...</div>
-      <button id="refresh">רענן מצב</button>
+      <div class="row">
+        <button id="refresh">רענן מצב</button>
+        <input id="symbols" value="AAPL,MSFT,NVDA" style="min-width:240px" />
+        <button id="loadQuotes">טען Quotes</button>
+      </div>
+      <div class="meta" style="margin-top:8px;">הערה: כרגע אצלך מתקבל delayed market data מ-IBKR API.</div>
     </div>
 
-    <div class="card">
+    <div id="quotes" class="grid"></div>
+
+    <div class="card" style="margin-top:10px;">
       <strong>Order Preview (Paper)</strong>
-      <div class="row" style="margin:8px 0;">
+      <div class="row" style="margin-top:8px;">
         <input id="symbol" placeholder="Symbol (AAPL)" value="AAPL" />
         <select id="side"><option>BUY</option><option>SELL</option></select>
         <input id="qty" type="number" value="1" min="1" />
@@ -44,20 +63,57 @@
     </div>
   </div>
 
+  <div class="footer-brand">Doozy Software Inc.</div>
+
   <script>
+    function fmt(v) {
+      return (typeof v === 'number' && Number.isFinite(v)) ? v.toFixed(2) : '—';
+    }
+
     async function refreshStatus() {
       const el = document.getElementById('ibkrStatus');
       try {
         const r = await fetch('/api/ibkr/status');
         const j = await r.json();
-        el.textContent = j.connected ? 'מחובר ✅' : (j.message || 'לא מחובר');
-        el.className = j.connected ? 'ok' : 'muted';
+        el.textContent = j.connected ? 'IBKR מחובר ✅ (Paper)' : (j.message || 'לא מחובר');
+        el.style.color = j.connected ? '#77e4aa' : '#ffd27f';
       } catch {
         el.textContent = 'שגיאת תקשורת';
       }
     }
 
+    async function loadQuotes() {
+      const symbols = document.getElementById('symbols').value.trim();
+      const box = document.getElementById('quotes');
+      box.innerHTML = '<div class="card muted">טוען...</div>';
+      try {
+        const r = await fetch(`/api/ibkr/quotes?symbols=${encodeURIComponent(symbols)}`);
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || 'quote_error');
+        box.innerHTML = '';
+        for (const q of (j.quotes || [])) {
+          const div = document.createElement('div');
+          div.className = 'quote-item';
+          div.innerHTML = `
+            <div>
+              <div class="sym">${q.symbol}</div>
+              <div class="meta">bid ${fmt(q.bid)} · ask ${fmt(q.ask)} · close ${fmt(q.close)}</div>
+            </div>
+            <div style="text-align:left;">
+              <div class="price">${fmt(q.last || q.marketPrice)}</div>
+              <div class="meta">${q.delayed ? 'Delayed' : 'Realtime'}</div>
+            </div>
+          `;
+          box.appendChild(div);
+        }
+      } catch (e) {
+        box.innerHTML = `<div class="card warn">שגיאה בטעינת Quotes: ${e.message}</div>`;
+      }
+    }
+
     document.getElementById('refresh').addEventListener('click', refreshStatus);
+    document.getElementById('loadQuotes').addEventListener('click', loadQuotes);
+
     document.getElementById('previewBtn').addEventListener('click', async () => {
       const symbol = document.getElementById('symbol').value.trim().toUpperCase();
       const side = document.getElementById('side').value;
@@ -72,6 +128,7 @@
     });
 
     refreshStatus();
+    loadQuotes();
   </script>
 </body>
 </html>
