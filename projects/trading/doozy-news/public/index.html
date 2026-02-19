@@ -69,7 +69,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 02:30</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 02:45</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -102,7 +102,7 @@
         try { return JSON.parse(t); } catch { return { ok:false, error:'non_json' }; }
       }
 
-      const SOURCES = {
+      let SOURCES = {
         all: [
           { name: 'Google News HE', url: 'https://news.google.com/rss?hl=he&gl=IL&ceid=IL:he' },
           { name: 'Google Business HE', url: 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=he&gl=IL&ceid=IL:he' },
@@ -129,6 +129,20 @@
           { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=607' }
         ]
       };
+      let remoteHideSelectors = [];
+
+      async function loadRemoteConfig() {
+        try {
+          const src = await fetchJson(apiUrl('/api/sources'));
+          if (src?.ok && src?.sources) SOURCES = src.sources;
+        } catch {}
+        try {
+          const rules = await fetchJson(apiUrl('/api/ad-rules'));
+          if (rules?.ok && Array.isArray(rules?.rules?.hideSelectors)) {
+            remoteHideSelectors = rules.rules.hideSelectors;
+          }
+        } catch {}
+      }
 
       async function httpText(url) {
         const capHttp = window.CapacitorHttp || window.Capacitor?.Plugins?.CapacitorHttp;
@@ -203,6 +217,9 @@
       function extractReadable(html) {
         const doc = new DOMParser().parseFromString(html, 'text/html');
         [...doc.querySelectorAll('script,style,noscript,iframe,header,footer,nav,aside,.ad,.ads,.advertisement,[role="banner"]')].forEach(el => el.remove());
+        const localHide = ['[id*="ad"]','[class*="ad-"]','[class*="advert"]','[class*="banner"]','[class*="popup"]','.paywall','.newsletter','.recommended'];
+        const allHide = [...new Set([...localHide, ...remoteHideSelectors])];
+        allHide.forEach(sel => { try { doc.querySelectorAll(sel).forEach(el => el.remove()); } catch {} });
         const container = doc.querySelector('article') || doc.querySelector('main') || doc.body;
         const title = (doc.querySelector('meta[property="og:title"]')?.content || doc.querySelector('title')?.textContent || '').trim();
         const paragraphs = [...container.querySelectorAll('p')]
@@ -364,8 +381,11 @@
         statusEl.textContent = getBackendBase() ? 'Backend נשמר לחילוץ כתבות מלאות' : 'Backend הוסר';
       });
 
-      loadNews();
-      setInterval(() => loadNews(false), 5 * 60 * 1000);
+      (async () => {
+        await loadRemoteConfig();
+        await loadNews();
+      })();
+      setInterval(async () => { await loadRemoteConfig(); await loadNews(false); }, 5 * 60 * 1000);
     </script>
   </body>
 </html>
