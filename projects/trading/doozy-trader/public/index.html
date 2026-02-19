@@ -21,7 +21,8 @@
     .ok { color:#77e4aa; }
     .warn { color:#ffd27f; }
     .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .quote-item { background:#141b34; border:1px solid #283157; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; }
+    .quote-item, .sug-item { background:#141b34; border:1px solid #283157; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; }
+    .sug-item { align-items:flex-start; }
     .sym { font-weight:700; font-size:20px; }
     .price { font-size:26px; line-height:1; text-align:left; }
     .meta { color:#99a6dd; font-size:12px; }
@@ -50,6 +51,14 @@
     </div>
 
     <div id="quotes" class="grid"></div>
+
+    <div class="card" style="margin-top:10px;">
+      <div class="row">
+        <strong>Trade Suggestions (Scanner v1)</strong>
+        <button id="loadSuggestions">Load Suggestions</button>
+      </div>
+      <div id="suggestions" class="grid" style="margin-top:8px;"></div>
+    </div>
 
     <div class="card" style="margin-top:10px;">
       <strong>Order Preview (Paper)</strong>
@@ -111,8 +120,39 @@
       }
     }
 
+    async function loadSuggestions() {
+      const symbols = document.getElementById('symbols').value.trim();
+      const box = document.getElementById('suggestions');
+      box.innerHTML = '<div class="card muted">Loading scanner...</div>';
+      try {
+        const r = await fetch(`/api/scanner/suggestions?symbols=${encodeURIComponent(symbols)}`);
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || 'scanner_error');
+        box.innerHTML = '';
+        for (const s of (j.suggestions || [])) {
+          const div = document.createElement('div');
+          div.className = 'sug-item';
+          div.innerHTML = `
+            <div>
+              <div class="sym">${s.symbol} · ${s.side}</div>
+              <div class="meta">Entry ${fmt(s.entry)} · Stop ${fmt(s.stopLoss)} · Target ${fmt(s.target)} · Trail ${s.trailingStopPct}%</div>
+              <div class="meta">Max Loss ${s.maxLossPct}% · Prob ${s.probability}% · ${s.reason}</div>
+            </div>
+            <div style="text-align:left;">
+              <div class="price">${s.score}</div>
+              <div class="meta">Score</div>
+            </div>
+          `;
+          box.appendChild(div);
+        }
+      } catch (e) {
+        box.innerHTML = `<div class="card warn">Scanner error: ${e.message}</div>`;
+      }
+    }
+
     document.getElementById('refresh').addEventListener('click', refreshStatus);
     document.getElementById('loadQuotes').addEventListener('click', loadQuotes);
+    document.getElementById('loadSuggestions').addEventListener('click', loadSuggestions);
 
     document.getElementById('previewBtn').addEventListener('click', async () => {
       const symbol = document.getElementById('symbol').value.trim().toUpperCase();
@@ -129,6 +169,7 @@
 
     refreshStatus();
     loadQuotes();
+    loadSuggestions();
   </script>
 </body>
 </html>
