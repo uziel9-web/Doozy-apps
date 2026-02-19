@@ -66,6 +66,7 @@
       .news li { margin-bottom: 10px; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
       .meta { color: #99a6dd; font-size: 12px; }
       .footer-brand { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7f8dc6; opacity: .9; pointer-events: none; }
+      .focus-mode .news { display:none; }
     </style>
   </head>
   <body>
@@ -97,6 +98,12 @@
             <option value="30">30m</option>
             <option value="60">60m</option>
           </select>
+          <select id="alertModeSelect" class="mini-select">
+            <option value="normal">התראות: רגיל</option>
+            <option value="quiet">התראות: שקט</option>
+            <option value="off">התראות: כבוי</option>
+          </select>
+          <button id="focusModeBtn" class="refresh-btn">מצב טרייד</button>
           <div id="newsUpdatedAt" class="meta">עודכן לאחרונה: —</div>
         </div>
         <div class="row" style="justify-content:flex-start;">
@@ -152,6 +159,8 @@
       const LS_PROVIDER_KEY = 'mag7_provider_v1';
       const LS_SCHWAB_TOKEN = 'mag7_schwab_token_v1';
       const LS_ALERT_COOLDOWN_MIN = 'mag7_alert_cooldown_min_v1';
+      const LS_ALERT_MODE = 'mag7_alert_mode_v1';
+      const LS_FOCUS_MODE = 'mag7_focus_mode_v1';
       const LS_ALERT_LAST_FIRE = 'mag7_alert_last_fire_v1';
       const LS_QUOTE_CACHE = 'mag7_quote_cache_v1';
 
@@ -187,6 +196,10 @@
       function setSchwabToken(v) { localStorage.setItem(LS_SCHWAB_TOKEN, v || ''); }
       function getAlertCooldownMin() { return Number(localStorage.getItem(LS_ALERT_COOLDOWN_MIN) || 15); }
       function setAlertCooldownMin(v) { localStorage.setItem(LS_ALERT_COOLDOWN_MIN, String(v)); }
+      function getAlertMode() { return localStorage.getItem(LS_ALERT_MODE) || 'normal'; }
+      function setAlertMode(v) { localStorage.setItem(LS_ALERT_MODE, v); }
+      function isFocusMode() { return localStorage.getItem(LS_FOCUS_MODE) === '1'; }
+      function setFocusMode(v) { localStorage.setItem(LS_FOCUS_MODE, v ? '1' : '0'); }
       function getAlertLastFire() { try { return JSON.parse(localStorage.getItem(LS_ALERT_LAST_FIRE) || '{}'); } catch { return {}; } }
       function setAlertLastFire(v) { localStorage.setItem(LS_ALERT_LAST_FIRE, JSON.stringify(v)); }
       function getQuoteCache() { try { return JSON.parse(localStorage.getItem(LS_QUOTE_CACHE) || '{}'); } catch { return {}; } }
@@ -283,27 +296,36 @@
         const hh = Number(map.hour || 0), mm = Number(map.minute || 0);
         const day = map.weekday;
         const mins = hh * 60 + mm;
-        const open = 9 * 60 + 30, close = 16 * 60;
+        const preOpen = 4 * 60, open = 9 * 60 + 30, close = 16 * 60, afterClose = 20 * 60;
         const weekdays = ['Mon','Tue','Wed','Thu','Fri'];
         const dayIdx = weekdays.indexOf(day);
         const isWeekday = dayIdx >= 0;
-        const isOpen = isWeekday && mins >= open && mins < close;
 
-        let left;
-        if (isOpen) {
-          left = close - mins;
+        if (isWeekday && mins >= open && mins < close) {
+          const left = close - mins;
           marketEl.classList.remove('closed');
           marketEl.classList.add('open');
           marketEl.textContent = `OPEN · closes in ${Math.floor(left/60)}h ${left%60}m`;
           return;
         }
+        if (isWeekday && mins >= preOpen && mins < open) {
+          const left = open - mins;
+          marketEl.classList.remove('closed');
+          marketEl.classList.add('open');
+          marketEl.textContent = `PRE · opens in ${Math.floor(left/60)}h ${left%60}m`;
+          return;
+        }
+        if (isWeekday && mins >= close && mins < afterClose) {
+          const left = afterClose - mins;
+          marketEl.classList.remove('closed');
+          marketEl.classList.add('open');
+          marketEl.textContent = `AFTER · ends in ${Math.floor(left/60)}h ${left%60}m`;
+          return;
+        }
 
         let daysToNext = 0;
-        if (!isWeekday) {
-          daysToNext = day === 'Sat' ? 2 : 1;
-        } else if (mins >= close) {
-          daysToNext = day === 'Fri' ? 3 : 1;
-        }
+        if (!isWeekday) daysToNext = day === 'Sat' ? 2 : 1;
+        else if (mins >= afterClose) daysToNext = day === 'Fri' ? 3 : 1;
         const untilOpen = (daysToNext * 24 * 60) + (open - mins);
         const fixed = untilOpen > 0 ? untilOpen : (open - mins);
         marketEl.classList.remove('open');
@@ -381,6 +403,7 @@
         const alertState = getAlertState();
         const alertLastFire = getAlertLastFire();
         const cooldownMs = getAlertCooldownMin() * 60 * 1000;
+        const alertMode = getAlertMode();
         const triggers = [];
 
         const box = document.getElementById('quotes');
@@ -425,11 +448,13 @@
           const nowTs = Date.now();
           const lastTs = Number(alertLastFire[q.symbol] || 0);
           const canFire = (nowTs - lastTs) >= cooldownMs;
-          if (canFire && alertCfg.upper && nowState.above && !prevState.above) {
+          const quietOk = Math.abs(Number(q.changePct || 0)) >= 1.5;
+          const modeOk = alertMode === 'normal' || (alertMode === 'quiet' && quietOk);
+          if (alertMode !== 'off' && modeOk && canFire && alertCfg.upper && nowState.above && !prevState.above) {
             triggers.push(`${q.symbol} מעל ${alertCfg.upper}`);
             alertLastFire[q.symbol] = nowTs;
           }
-          if (canFire && alertCfg.lower && nowState.below && !prevState.below) {
+          if (alertMode !== 'off' && modeOk && canFire && alertCfg.lower && nowState.below && !prevState.below) {
             triggers.push(`${q.symbol} מתחת ${alertCfg.lower}`);
             alertLastFire[q.symbol] = nowTs;
           }
@@ -531,6 +556,7 @@
       document.getElementById('rangeSelect').value = getRange();
       document.getElementById('providerSelect').value = getProvider();
       document.getElementById('alertCooldownSelect').value = String(getAlertCooldownMin());
+      document.getElementById('alertModeSelect').value = getAlertMode();
 
       quotesEl.addEventListener('click', async (e) => {
         const pinBtn = e.target.closest('.pin-btn');
@@ -605,6 +631,13 @@
         quotesEl.dataset.sortableInit = '1';
       }
 
+      function applyFocusMode() {
+        const on = isFocusMode();
+        document.body.classList.toggle('focus-mode', on);
+        const btn = document.getElementById('focusModeBtn');
+        if (btn) btn.textContent = on ? 'מצב רגיל' : 'מצב טרייד';
+      }
+
       document.getElementById('rangeSelect').addEventListener('change', async (e) => {
         setRange(e.currentTarget.value);
         await loadQuotes();
@@ -621,6 +654,15 @@
 
       document.getElementById('alertCooldownSelect').addEventListener('change', (e) => {
         setAlertCooldownMin(Number(e.currentTarget.value || 15));
+      });
+
+      document.getElementById('alertModeSelect').addEventListener('change', (e) => {
+        setAlertMode(e.currentTarget.value || 'normal');
+      });
+
+      document.getElementById('focusModeBtn').addEventListener('click', () => {
+        setFocusMode(!isFocusMode());
+        applyFocusMode();
       });
 
       document.getElementById('refreshQuotesBtn').addEventListener('click', async (e) => {
@@ -684,6 +726,7 @@
       });
 
       updateFooterRefresh('—');
+      applyFocusMode();
       updateMarketStatus();
       refreshAll();
       setInterval(loadQuotes, 60000);
