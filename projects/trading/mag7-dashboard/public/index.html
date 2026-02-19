@@ -7,8 +7,8 @@
     <style>
       body { font-family: Arial, sans-serif; margin: 0; background: #0b1020; color: #e8ecff; }
       .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
-      h1 { margin: 0 0 6px; }
-      .sub { color: #a9b4e7; margin-bottom: 16px; }
+      h1 { margin: 0 0 6px; text-align:center; }
+      .sub { color: #a9b4e7; margin-bottom: 10px; text-align:center; }
       .grid { display: grid; gap: 10px; grid-template-columns: 1fr; }
       .compact-mode .wrap { padding: 12px; }
       .compact-mode .grid { gap: 7px; }
@@ -29,12 +29,13 @@
       .up { color: #40d38a; }
       .down { color: #ff6b81; }
       .chg { font-size: 11px; text-align:left; }
-      .source { color:#8f9bd0; font-size:12px; margin-bottom:8px; }
+      .source { color:#8f9bd0; font-size:12px; margin-bottom:8px; text-align:center; }
       .topline { display:flex; flex-direction:column; gap:8px; margin:8px 0; width:100%; }
       .topline .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; width:100%; }
       .topline .controls-grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; width:100%; }
       .topline .controls-grid > * { min-width:0; }
-      #status { min-height: 22px; }
+      #status { min-height: 0; margin:0; }
+      #status:empty { display:none; }
       #dataStatus, #newsUpdatedAt { min-height: 18px; display:inline-block; }
       .market-pill { font-size:12px; color:#c9d4ff; background:#111a3a; border:1px solid #2b386e; border-radius:999px; padding:6px 10px; }
       .market-pill.open { color:#9ff0c7; border-color:#2b8a5f; }
@@ -48,10 +49,10 @@
       .news { margin-top: 18px; background: #141b34; border: 1px solid #283157; border-radius: 12px; padding: 14px; direction:ltr; text-align:left; width: 100%; box-sizing: border-box; }
       .news-head { display:flex; flex-direction:column; align-items:stretch; gap:8px; margin-bottom:10px; }
       .news-head .controls { display:flex; gap:6px; align-items:center; justify-content:flex-start; flex-wrap:wrap; }
-      .news h2 { margin: 0; font-size: 22px; line-height:1.2; direction:rtl; text-align:right; }
+      .news h2 { margin: 0; font-size: 22px; line-height:1.2; direction:rtl; text-align:center; width:100%; }
       .refresh-btn, .mini-select { background:#26346a; border:1px solid #3a4a8e; color:#fff; border-radius:8px; padding:6px 10px; font-size:12px; }
       #refreshQuotesBtn { min-width: 96px; }
-      #status { min-height: 20px; }
+
       .pin-btn,.alert-btn,.translate-btn { background:transparent; border:1px solid #3a4a8e; color:#cdd7ff; border-radius:8px; padding:3px 6px; font-size:11px; }
       .tiny { font-size:11px; color:#9eb0ea; }
       .news ul { margin: 0; padding-left: 20px; }
