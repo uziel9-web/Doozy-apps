@@ -19,18 +19,23 @@
       .compact-mode .news { padding:10px; }
       .compact-mode .news li { margin-bottom:7px; }
       .compact-mode .news h2 { font-size:20px; }
-      .card { background: #141b34; border: 1px solid #283157; border-radius: 10px; padding: 10px 12px; display:flex; align-items:center; justify-content:space-between; }
+      .card { background: #141b34; border: 1px solid #283157; border-radius: 8px; padding: 6px 8px; display:flex; align-items:center; justify-content:space-between; }
       .card.upbg { background: linear-gradient(0deg, rgba(49,115,84,.22), rgba(49,115,84,.22)), #141b34; }
       .card.downbg { background: linear-gradient(0deg, rgba(122,52,72,.22), rgba(122,52,72,.22)), #141b34; }
-      .left { display:flex; flex-direction:column; gap:2px; }
-      .sym { font-weight: 700; font-size: 20px; line-height:1; }
-      .name { color: #a9b4e7; font-size: 11px; }
-      .price { font-size: 30px; margin-top: 0; line-height:1; text-align:left; }
+      .left { display:flex; flex-direction:column; gap:1px; }
+      .sym { font-weight: 700; font-size: 18px; line-height:1; }
+      .name { display:none; }
+      .price { font-size: 24px; margin-top: 0; line-height:1; text-align:left; }
       .up { color: #40d38a; }
       .down { color: #ff6b81; }
-      .chg { font-size: 13px; text-align:left; }
+      .chg { font-size: 11px; text-align:left; }
       .source { color:#8f9bd0; font-size:12px; margin-bottom:8px; }
-      .topline { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:8px 0; }
+      .topline { display:flex; flex-direction:column; gap:8px; margin:8px 0; width:100%; }
+      .topline .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; width:100%; }
+      .topline .controls-grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; width:100%; }
+      .topline .controls-grid > * { min-width:0; }
+      #status { min-height: 22px; }
+      #dataStatus, #newsUpdatedAt { min-height: 18px; display:inline-block; }
       .market-pill { font-size:12px; color:#c9d4ff; background:#111a3a; border:1px solid #2b386e; border-radius:999px; padding:6px 10px; }
       .market-pill.open { color:#9ff0c7; border-color:#2b8a5f; }
       .market-pill.closed { color:#ffb4b4; border-color:#8a2b47; }
@@ -40,16 +45,20 @@
       .actions { display:flex; align-items:center; gap:6px; margin-right:8px; }
       .drag-handle { color:#9fb0f0; font-size:20px; opacity:.85; }
       .hint { color:#8ea0dd; font-size:11px; margin-top:4px; }
-      .news { margin-top: 18px; background: #141b34; border: 1px solid #283157; border-radius: 12px; padding: 14px; direction:ltr; text-align:left; }
+      .news { margin-top: 18px; background: #141b34; border: 1px solid #283157; border-radius: 12px; padding: 14px; direction:ltr; text-align:left; width: 100%; box-sizing: border-box; }
       .news-head { display:flex; flex-direction:column; align-items:stretch; gap:8px; margin-bottom:10px; }
       .news-head .controls { display:flex; gap:6px; align-items:center; justify-content:flex-start; flex-wrap:wrap; }
       .news h2 { margin: 0; font-size: 22px; line-height:1.2; direction:rtl; text-align:right; }
       .refresh-btn, .mini-select { background:#26346a; border:1px solid #3a4a8e; color:#fff; border-radius:8px; padding:6px 10px; font-size:12px; }
+      #refreshQuotesBtn { min-width: 96px; }
+      #status { min-height: 20px; }
       .pin-btn,.alert-btn,.translate-btn { background:transparent; border:1px solid #3a4a8e; color:#cdd7ff; border-radius:8px; padding:3px 6px; font-size:11px; }
       .tiny { font-size:11px; color:#9eb0ea; }
-      .news a { color: #dbe2ff; text-decoration: none; }
+      .news ul { margin: 0; padding-left: 20px; }
+      .news li { width: 100%; }
+      .news a { color: #dbe2ff; text-decoration: none; display: inline; }
       .news a:hover { text-decoration: underline; }
-      .news li { margin-bottom: 10px; }
+      .news li { margin-bottom: 10px; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
       .meta { color: #99a6dd; font-size: 12px; }
       .footer-brand { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7f8dc6; opacity: .9; pointer-events: none; }
     </style>
@@ -61,23 +70,22 @@
       <div id="status" class="sub" style="color:#ffb4b4"></div>
       <div class="source">מקור נתונים: Stooq (עיכוב קל אפשרי). שינוי מחושב מול הסגירה הקודמת.</div>
       <div class="topline">
-        <div id="marketStatus" class="market-pill">מצב שוק: טוען...</div>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <label class="tiny">ספק:</label>
+        <div class="row" style="justify-content:flex-end;">
+          <div id="marketStatus" class="market-pill">מצב שוק: טוען...</div>
+        </div>
+        <div class="controls-grid">
           <select id="providerSelect" class="mini-select">
             <option value="stooq">Stooq</option>
             <option value="schwab">Schwab (thinkorswim)</option>
             <option value="ibkr">IBKR (Gateway)</option>
           </select>
           <button id="refreshQuotesBtn" class="refresh-btn">רענן נתונים</button>
-          <button id="schwabTokenBtn" class="refresh-btn">Schwab Token</button>
-          <label class="tiny">ביצועים:</label>
           <select id="rangeSelect" class="mini-select">
             <option value="1d">יומי</option>
             <option value="1w">שבועי</option>
             <option value="1m">חודשי</option>
           </select>
-          <label class="tiny">Cooldown:</label>
+          <button id="schwabTokenBtn" class="refresh-btn">Schwab Token</button>
           <select id="alertCooldownSelect" class="mini-select">
             <option value="5">5m</option>
             <option value="15" selected>15m</option>
@@ -85,6 +93,8 @@
             <option value="60">60m</option>
           </select>
           <div id="newsUpdatedAt" class="meta">עודכן לאחרונה: —</div>
+        </div>
+        <div class="row" style="justify-content:flex-start;">
           <div id="dataStatus" class="meta">Data: loading…</div>
         </div>
       </div>
@@ -92,14 +102,6 @@
       <div class="toolbar">
         <input id="symbolInput" placeholder="הוסף סימבול (למשל NFLX)" />
         <button id="addBtn">הוסף</button>
-        <select id="presetSelect" class="mini-select">
-          <option value="mag7">MAG7</option>
-          <option value="ai">AI</option>
-          <option value="custom">Custom (no change)</option>
-        </select>
-        <button id="applyPresetBtn">החל Preset</button>
-        <button id="exportBtn">יצוא</button>
-        <button id="importBtn">יבוא</button>
       </div>
       <div id="quotes" class="grid"></div>
       <div class="news">
@@ -113,7 +115,6 @@
               <option value="earnings">Earnings</option>
               <option value="geo">Geo</option>
             </select>
-            <button id="compactBtn" class="refresh-btn">תצוגה קומפקטית</button>
             <button id="refreshNewsBtn" class="refresh-btn">רענן</button>
           </div>
         </div>
@@ -121,28 +122,27 @@
       </div>
     </div>
 
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build — · Refresh —</div>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script>
+      const BUILD_STAMP = 'Build 2026-02-19 19:39';
       const money = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const statusEl = document.getElementById('status');
       const newsUpdatedEl = document.getElementById('newsUpdatedAt');
       const dataStatusEl = document.getElementById('dataStatus');
       const marketEl = document.getElementById('marketStatus');
+      const footerEl = document.getElementById('footerBrand');
       const DEFAULT_LIST = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOG', 'META', 'TSLA'];
-      const PRESETS = {
-        mag7: ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOG', 'META', 'TSLA'],
-        ai: ['NVDA', 'AMD', 'SMCI', 'PLTR', 'META', 'MSFT', 'GOOG']
-      };
       const LS_KEY = 'mag7_watchlist_v1';
       const LS_PIN_KEY = 'mag7_pins_v1';
       const LS_ALERT_KEY = 'mag7_alerts_v1';
       const LS_ALERT_STATE_KEY = 'mag7_alert_state_v1';
       const LS_RANGE_KEY = 'mag7_range_v1';
-      const LS_VIEW_KEY = 'mag7_view_compact_v1';
       const LS_PROVIDER_KEY = 'mag7_provider_v1';
       const LS_SCHWAB_TOKEN = 'mag7_schwab_token_v1';
       const LS_ALERT_COOLDOWN_MIN = 'mag7_alert_cooldown_min_v1';
       const LS_ALERT_LAST_FIRE = 'mag7_alert_last_fire_v1';
+      const LS_QUOTE_CACHE = 'mag7_quote_cache_v1';
 
       function getWatchlist() {
         try {
@@ -178,9 +178,8 @@
       function setAlertCooldownMin(v) { localStorage.setItem(LS_ALERT_COOLDOWN_MIN, String(v)); }
       function getAlertLastFire() { try { return JSON.parse(localStorage.getItem(LS_ALERT_LAST_FIRE) || '{}'); } catch { return {}; } }
       function setAlertLastFire(v) { localStorage.setItem(LS_ALERT_LAST_FIRE, JSON.stringify(v)); }
-      function isCompactView() { return localStorage.getItem(LS_VIEW_KEY) === '1'; }
-      function setCompactView(v) { localStorage.setItem(LS_VIEW_KEY, v ? '1' : '0'); }
-
+      function getQuoteCache() { try { return JSON.parse(localStorage.getItem(LS_QUOTE_CACHE) || '{}'); } catch { return {}; } }
+      function setQuoteCache(v) { localStorage.setItem(LS_QUOTE_CACHE, JSON.stringify(v)); }
       async function httpText(url, headers = {}) {
         const capHttp = window.CapacitorHttp || window.Capacitor?.Plugins?.CapacitorHttp;
         const isNative = !!window.Capacitor?.isNativePlatform?.();
@@ -202,12 +201,65 @@
         return await r.json();
       }
 
-      function sparkline(values) {
-        const ticks = '▁▂▃▄▅▆▇█';
-        if (!values || values.length < 2) return '—';
-        const min = Math.min(...values), max = Math.max(...values);
-        const span = (max - min) || 1;
-        return values.map(v => ticks[Math.max(0, Math.min(7, Math.round(((v - min) / span) * 7)))]).join('');
+      function parseStooqCloses(raw) {
+        const lines = String(raw || '').trim().split(/\r?\n/).filter(Boolean);
+        const dataLines = lines.filter(l => !/^date,open,high,low,close,volume/i.test(l));
+        const closes = dataLines.map(l => Number((l.split(',')[4] || '').trim())).filter(n => Number.isFinite(n) && n > 0);
+        return closes;
+      }
+
+      function parseStooqLatestClose(raw) {
+        const lines = String(raw || '').trim().split(/\r?\n/).filter(Boolean);
+        if (lines.length < 2) return 0;
+        const last = lines[lines.length - 1].split(',').map(x => x.trim());
+        const candidates = [last[6], last[4], last[last.length - 3], last[last.length - 2]];
+        for (const c of candidates) {
+          const n = Number(c);
+          if (Number.isFinite(n) && n > 0) return n;
+        }
+        return 0;
+      }
+
+      async function fetchQuoteRobust(sym, back, range) {
+        // 1) Stooq JSON quote (reliable, low request cost)
+        try {
+          const y = await httpJson(`https://stooq.com/q/l/?s=${sym.toLowerCase()}.us&f=sd2t2ohlcv&h&e=json`);
+          const row = Array.isArray(y?.symbols) ? y.symbols[0] : null;
+          const close = Number(row?.close || 0);
+          const open = Number(row?.open || 0);
+          if (close > 0) {
+            // For 1d: use intraday move (open->last close) to avoid daily hits-limit on historical endpoint
+            if (range === '1d' && open > 0) {
+              const change = close - open;
+              const changePct = (change / open) * 100;
+              return { price: close, change, changePct };
+            }
+            // fallback baseline when open missing
+            if (range === '1d') {
+              return { price: close, change: 0, changePct: 0 };
+            }
+          }
+        } catch {}
+
+        // 2) Historical CSV for weekly/monthly when available
+        try {
+          const histRaw = await httpText(`https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&i=d`);
+          const closes = parseStooqCloses(histRaw);
+          const close = closes.length ? closes[closes.length - 1] : 0;
+          const prevClose = closes.length >= back ? closes[closes.length - back] : close;
+          if (close > 0) {
+            const change = close - prevClose;
+            const changePct = prevClose ? (change / prevClose) * 100 : 0;
+            return { price: close, change, changePct };
+          }
+        } catch {}
+
+        throw new Error('quote_unavailable');
+      }
+
+      function updateFooterRefresh(tsText) {
+        if (!footerEl) return;
+        footerEl.textContent = `Doozy Software Inc. · ${BUILD_STAMP} · Refresh ${tsText || '—'}`;
       }
 
       function updateMarketStatus() {
@@ -249,7 +301,6 @@
       }
 
       async function loadQuotes(force = false) {
-        dataStatusEl.textContent = 'Data: refreshing…';
         const watchlist = getWatchlist();
         const pins = new Set(getPins());
         const range = getRange();
@@ -262,17 +313,17 @@
           const back = range === '1m' ? 22 : range === '1w' ? 6 : 2;
           rows = await Promise.all(
             watchlist.map(async (sym) => {
-              const raw = await httpText(`https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&i=d${bust}`);
-              const lines = raw.trim().split('\n').slice(1).filter(Boolean);
-              const row = (i) => (lines[i] || '').split(',');
-              const last = row(lines.length - 1);
-              const prev = row(Math.max(0, lines.length - back));
-              const close = Number(last[4] || 0);
-              const prevClose = Number(prev[4] || close || 0);
-              const closes = lines.slice(-8).map(l => Number((l.split(',')[4] || 0))).filter(n => n > 0);
-              const change = close - prevClose;
-              const changePct = prevClose ? (change / prevClose) * 100 : 0;
-              return { symbol: sym, name: sym, price: close, change, changePct, pinned: pins.has(sym), delayed: true, spark: sparkline(closes) };
+              try {
+                const qv = await fetchQuoteRobust(sym, back, range);
+                const cache = getQuoteCache();
+                cache[sym] = { price: qv.price, change: qv.change, changePct: qv.changePct, ts: Date.now() };
+                setQuoteCache(cache);
+                return { symbol: sym, name: sym, price: qv.price, change: qv.change, changePct: qv.changePct, pinned: pins.has(sym), delayed: true };
+              } catch {
+                const cache = getQuoteCache();
+                const fallback = cache[sym] || { price: 0, change: 0, changePct: 0 };
+                return { symbol: sym, name: sym, price: fallback.price, change: fallback.change, changePct: fallback.changePct, pinned: pins.has(sym), delayed: true };
+              }
             })
           );
         } else if (provider === 'schwab') {
@@ -291,29 +342,29 @@
               const price = Number(q.lastPrice ?? q.mark ?? 0);
               const change = Number(q.netChange ?? 0);
               const changePct = Number(q.netPercentChangeInDouble ?? 0);
-              return { symbol: sym, name: ref.description || sym, price, change, changePct, pinned: pins.has(sym), delayed: false, spark: '▁▂▃▄▅' };
+              return { symbol: sym, name: ref.description || sym, price, change, changePct, pinned: pins.has(sym), delayed: false };
             });
           }
         } else {
           const back = range === '1m' ? 22 : range === '1w' ? 6 : 2;
           rows = await Promise.all(
             watchlist.map(async (sym) => {
-              const raw = await httpText(`https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&i=d${bust}`);
-              const lines = raw.trim().split('\n').slice(1).filter(Boolean);
-              const row = (i) => (lines[i] || '').split(',');
-              const last = row(lines.length - 1);
-              const prev = row(Math.max(0, lines.length - back));
-              const close = Number(last[4] || 0);
-              const prevClose = Number(prev[4] || close || 0);
-              const closes = lines.slice(-8).map(l => Number((l.split(',')[4] || 0))).filter(n => n > 0);
-              const change = close - prevClose;
-              const changePct = prevClose ? (change / prevClose) * 100 : 0;
-              return { symbol: sym, name: sym, price: close, change, changePct, pinned: pins.has(sym), delayed: true, spark: sparkline(closes) };
+              try {
+                const qv = await fetchQuoteRobust(sym, back, range);
+                const cache = getQuoteCache();
+                cache[sym] = { price: qv.price, change: qv.change, changePct: qv.changePct, ts: Date.now() };
+                setQuoteCache(cache);
+                return { symbol: sym, name: sym, price: qv.price, change: qv.change, changePct: qv.changePct, pinned: pins.has(sym), delayed: true };
+              } catch {
+                const cache = getQuoteCache();
+                const fallback = cache[sym] || { price: 0, change: 0, changePct: 0 };
+                return { symbol: sym, name: sym, price: fallback.price, change: fallback.change, changePct: fallback.changePct, pinned: pins.has(sym), delayed: true };
+              }
             })
           );
         }
 
-        rows.sort((a, b) => (b.pinned - a.pinned) || (watchlist.indexOf(a.symbol) - watchlist.indexOf(b.symbol)));
+        // Keep user watchlist order stable on refresh
 
         const alerts = getAlerts();
         const alertState = getAlertState();
@@ -322,6 +373,8 @@
         const triggers = [];
 
         const box = document.getElementById('quotes');
+        const prevH = box.offsetHeight;
+        if (prevH > 0) box.style.minHeight = `${prevH}px`;
         box.innerHTML = '';
         for (const q of rows) {
           const isUp = (q.change || 0) >= 0;
@@ -334,8 +387,7 @@
           div.innerHTML = `
             <div class="left">
               <div class="sym">${q.symbol}</div>
-              <div class="name">${q.name || ''}</div>
-              <div class="tiny">${provider === 'schwab' ? 'שינוי תוך-יומי (live)' : (range === '1d' ? 'שינוי יומי' : range === '1w' ? 'שינוי שבועי' : 'שינוי חודשי')} · ${q.spark || '—'}</div>
+                            <div class="tiny">${provider === 'schwab' ? 'שינוי תוך-יומי (live)' : (range === '1d' ? 'שינוי יומי' : range === '1w' ? 'שינוי שבועי' : 'שינוי חודשי')}</div>
             </div>
             <div>
               <div class="price">${money.format(q.price || 0)}</div>
@@ -352,12 +404,6 @@
             m.className = 'tiny';
             m.textContent = `התראה: ${alertCfg.lower ? '< ' + alertCfg.lower : ''}${(alertCfg.lower && alertCfg.upper) ? ' | ' : ''}${alertCfg.upper ? '> ' + alertCfg.upper : ''}`;
             div.querySelector('.left').appendChild(m);
-          }
-          if (Math.abs(q.changePct || 0) >= 3) {
-            const risk = document.createElement('div');
-            risk.className = 'tiny';
-            risk.textContent = '⚠️ Volatility risk (|Δ| ≥ 3%)';
-            div.querySelector('.left').appendChild(risk);
           }
 
           const prevState = alertState[q.symbol] || {};
@@ -385,9 +431,14 @@
         if (triggers.length) statusEl.textContent = `התראת מחיר: ${triggers.join(' | ')}`;
         const delayedCount = rows.filter(r => r.delayed).length;
         const liveCount = rows.length - delayedCount;
-        const ts = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-        dataStatusEl.textContent = `Data: ${liveCount > 0 ? `Live ${liveCount}` : ''}${liveCount > 0 && delayedCount > 0 ? ' · ' : ''}${delayedCount > 0 ? `Delayed ${delayedCount}` : ''} · ${ts}`;
+        const ts = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+        dataStatusEl.textContent = `Data: ${liveCount > 0 ? `Live ${liveCount}` : 'Live 0'} · ${delayedCount > 0 ? `Delayed ${delayedCount}` : 'Delayed 0'} · ${ts}`;
+        if (rows.every(r => !(r.price > 0))) {
+          statusEl.textContent = 'לא התקבלו מחירים חיים כרגע. נסה שוב בעוד כמה שניות.';
+        }
+        updateFooterRefresh(ts);
         initSortable();
+        requestAnimationFrame(() => { box.style.minHeight = ''; });
       }
 
       async function loadNews(force = false) {
@@ -404,30 +455,18 @@
         const q = encodeURIComponent(topicQ);
         const xml = await httpText(`https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en${bust}`);
         const doc = new DOMParser().parseFromString(xml, 'text/xml');
-        const scoreNews = (t = '') => {
-          const s = t.toLowerCase();
-          let sc = 0;
-          if (/(ai|artificial intelligence|chip|nvidia|semiconductor)/.test(s)) sc += 3;
-          if (/(earnings|guidance|revenue|profit)/.test(s)) sc += 2;
-          if (/(fed|inflation|rates|macro|bond)/.test(s)) sc += 2;
-          if (/(market|stocks|nasdaq|s&p|dow)/.test(s)) sc += 1;
-          return sc;
-        };
-
-        const items = [...doc.querySelectorAll('item')].map((it) => ({
+        const items = [...doc.querySelectorAll('item')].slice(0, 12).map((it) => ({
           title: it.querySelector('title')?.textContent || '',
           link: it.querySelector('link')?.textContent || '',
           pubDate: it.querySelector('pubDate')?.textContent || '',
           source: it.querySelector('source')?.textContent || ''
-        })).map(n => ({ ...n, score: scoreNews(n.title) }))
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 12);
+        }));
 
         const list = document.getElementById('news');
         list.innerHTML = '';
         for (const n of items) {
           const li = document.createElement('li');
-          li.innerHTML = `<a href="${n.link}" target="_blank" rel="noopener">${n.title}</a> <button class="translate-btn" data-title="${(n.title || '').replace(/"/g, '&quot;')}">תרגם</button><div class="meta">Score ${n.score} · ${n.source || ''} · ${n.pubDate || ''}</div><div class="tiny translation"></div>`;
+          li.innerHTML = `<a href="${n.link}" target="_blank" rel="noopener">${n.title}</a> <button class="translate-btn" data-title="${(n.title || '').replace(/"/g, '&quot;')}">תרגם</button><div class="meta">${n.source || ''} · ${n.pubDate || ''}</div><div class="tiny translation"></div>`;
           list.appendChild(li);
         }
         const t = new Date();
@@ -458,37 +497,6 @@
       document.getElementById('addBtn').addEventListener('click', addSymbol);
       document.getElementById('symbolInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') addSymbol();
-      });
-
-      document.getElementById('applyPresetBtn').addEventListener('click', async () => {
-        const key = document.getElementById('presetSelect').value;
-        if (!PRESETS[key]) return;
-        setWatchlist(PRESETS[key]);
-        await loadQuotes(true);
-      });
-
-      document.getElementById('exportBtn').addEventListener('click', () => {
-        const payload = {
-          watchlist: getWatchlist(),
-          pins: getPins(),
-          alerts: getAlerts(),
-          exportedAt: new Date().toISOString()
-        };
-        prompt('Copy backup JSON:', JSON.stringify(payload));
-      });
-
-      document.getElementById('importBtn').addEventListener('click', async () => {
-        const raw = prompt('Paste backup JSON:');
-        if (!raw) return;
-        try {
-          const data = JSON.parse(raw);
-          if (Array.isArray(data.watchlist) && data.watchlist.length) setWatchlist(data.watchlist.map(x => String(x).toUpperCase()));
-          if (Array.isArray(data.pins)) setPins(data.pins.map(x => String(x).toUpperCase()));
-          if (data.alerts && typeof data.alerts === 'object') setAlerts(data.alerts);
-          await loadQuotes(true);
-        } catch {
-          alert('Invalid backup JSON');
-        }
       });
 
       const quotesEl = document.getElementById('quotes');
@@ -569,17 +577,6 @@
         quotesEl.dataset.sortableInit = '1';
       }
 
-      function applyCompactUi() {
-        const compact = isCompactView();
-        document.body.classList.toggle('compact-mode', compact);
-        document.getElementById('compactBtn').textContent = compact ? 'תצוגה מורחבת' : 'תצוגה קומפקטית';
-      }
-
-      document.getElementById('compactBtn').addEventListener('click', () => {
-        setCompactView(!isCompactView());
-        applyCompactUi();
-      });
-
       document.getElementById('rangeSelect').addEventListener('change', async (e) => {
         setRange(e.currentTarget.value);
         await loadQuotes();
@@ -601,17 +598,12 @@
       document.getElementById('refreshQuotesBtn').addEventListener('click', async (e) => {
         const btn = e.currentTarget;
         btn.disabled = true;
-        const orig = btn.textContent;
-        btn.textContent = 'מרענן...';
-        statusEl.textContent = 'מרענן נתוני מניות...';
         try {
-          await loadQuotes(true);
-          statusEl.textContent = '';
+          await loadQuotes(false);
         } catch {
           statusEl.textContent = 'רענון נתונים נכשל, נסה שוב.';
         } finally {
           btn.disabled = false;
-          btn.textContent = orig;
         }
       });
 
@@ -663,13 +655,12 @@
         }
       });
 
-      applyCompactUi();
+      updateFooterRefresh('—');
       updateMarketStatus();
       refreshAll();
       setInterval(loadQuotes, 60000);
       setInterval(loadNews, 300000);
       setInterval(updateMarketStatus, 60000);
     </script>
-    <div class="footer-brand">Doozy Software Inc.</div>
   </body>
 </html>
