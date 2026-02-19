@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uzi Apps Admin</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#0b1020;color:#eef2ff;margin:0}
+    .wrap{max-width:820px;margin:0 auto;padding:24px 16px}
+    .card{background:#121936;border:1px solid #283157;border-radius:14px;padding:18px}
+    input{width:100%;padding:10px;border-radius:8px;border:1px solid #324176;background:#0f1630;color:#fff}
+    table{width:100%;border-collapse:collapse;margin-top:14px}
+    td,th{border-bottom:1px solid #2a3565;padding:8px;text-align:right}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" id="gate">
+      <h2>אזור מפתח</h2>
+      <p>הכנס מפתח גישה:</p>
+      <input id="k" type="password" placeholder="Admin key" />
+    </div>
+
+    <div class="card hidden" id="panel">
+      <h2>MAG7 – ניהול גרסאות</h2>
+      <table>
+        <thead><tr><th>גרסה</th><th>קובץ</th><th>ערוץ</th></tr></thead>
+        <tbody>
+          <tr><td>latest</td><td><a href="../apps/mag7/latest.apk">latest.apk</a></td><td>stable</td></tr>
+          <tr><td>build-2026-02-19</td><td><a href="../apps/mag7/archive/build-2026-02-19.apk">archive/build-2026-02-19.apk</a></td><td>history</td></tr>
+        </tbody>
+      </table>
+      <p style="color:#9bacdf">* בהמשך נעביר לאימות אמיתי (Cloudflare Access).</p>
+    </div>
+  </div>
+
+  <script>
+    const ADMIN_KEY = 'uzi-dev-only';
+    const input = document.getElementById('k');
+    input.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && input.value === ADMIN_KEY){
+        document.getElementById('gate').classList.add('hidden');
+        document.getElementById('panel').classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
