@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Doozy Trader</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b1020; color:#e8ecff; margin:0; }
+    .wrap { max-width:900px; margin:0 auto; padding:20px; }
+    .card { background:#141b34; border:1px solid #283157; border-radius:12px; padding:14px; margin-bottom:10px; }
+    .muted { color:#a9b4e7; }
+    .warn { color:#ffd27f; }
+    .ok { color:#77e4aa; }
+    button { background:#26346a; border:1px solid #3a4a8e; color:#fff; border-radius:8px; padding:8px 12px; }
+    input, select { background:#0f1630; border:1px solid #283157; color:#e8ecff; border-radius:8px; padding:8px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Doozy Trader (MVP)</h1>
+    <div class="muted">אפליקציית מסחר ייעודית נפרדת מהדשבורד. מצב התחלתי: Paper-only.</div>
+
+    <div class="card">
+      <strong>מצב בטיחות</strong>
+      <div class="warn">Live trading כבוי כברירת מחדל. כל פקודה דורשת אישור כפול.</div>
+    </div>
+
+    <div class="card">
+      <strong>IBKR Bridge</strong>
+      <div id="ibkrStatus" class="muted">בודק מצב...</div>
+      <button id="refresh">רענן מצב</button>
+    </div>
+
+    <div class="card">
+      <strong>Order Preview (Paper)</strong>
+      <div class="row" style="margin:8px 0;">
+        <input id="symbol" placeholder="Symbol (AAPL)" value="AAPL" />
+        <select id="side"><option>BUY</option><option>SELL</option></select>
+        <input id="qty" type="number" value="1" min="1" />
+        <button id="previewBtn">צור Preview</button>
+      </div>
+      <pre id="previewOut" class="muted"></pre>
+    </div>
+  </div>
+
+  <script>
+    async function refreshStatus() {
+      const el = document.getElementById('ibkrStatus');
+      try {
+        const r = await fetch('/api/ibkr/status');
+        const j = await r.json();
+        el.textContent = j.connected ? 'מחובר ✅' : (j.message || 'לא מחובר');
+        el.className = j.connected ? 'ok' : 'muted';
+      } catch {
+        el.textContent = 'שגיאת תקשורת';
+      }
+    }
+
+    document.getElementById('refresh').addEventListener('click', refreshStatus);
+    document.getElementById('previewBtn').addEventListener('click', async () => {
+      const symbol = document.getElementById('symbol').value.trim().toUpperCase();
+      const side = document.getElementById('side').value;
+      const qty = Number(document.getElementById('qty').value || 0);
+      const r = await fetch('/api/orders/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol, side, qty, type: 'MKT' })
+      });
+      const j = await r.json();
+      document.getElementById('previewOut').textContent = JSON.stringify(j, null, 2);
+    });
+
+    refreshStatus();
+  </script>
+</body>
+</html>
