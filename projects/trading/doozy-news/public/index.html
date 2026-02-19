@@ -22,6 +22,13 @@
       .chip { font-size:11px; border:1px solid #3a4a8e; color:#cdd7ff; border-radius:999px; padding:2px 8px; }
       .footer-brand { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7f8dc6; opacity: .9; pointer-events: none; }
       .warn { color:#ffd27f; text-align:center; }
+      .reader { position:fixed; inset:0; background:rgba(5,8,18,.92); display:none; z-index:999; }
+      .reader.open { display:block; }
+      .reader-box { max-width:900px; height:100%; margin:0 auto; padding:14px; overflow:auto; }
+      .reader-card { background:#141b34; border:1px solid #283157; border-radius:12px; padding:14px; }
+      .reader-title { font-size:24px; font-weight:700; margin-bottom:8px; }
+      .reader-actions { display:flex; gap:8px; margin-bottom:10px; }
+      .reader-p { color:#dfe5ff; line-height:1.7; margin:0 0 10px; }
     </style>
   </head>
   <body>
@@ -45,11 +52,31 @@
       <div id="newsGrid" class="grid"></div>
     </div>
 
+    <div id="reader" class="reader">
+      <div class="reader-box">
+        <div class="reader-card">
+          <div class="reader-actions">
+            <button id="closeReader" class="refresh-btn">סגור</button>
+            <button id="openOriginal" class="refresh-btn">פתח מקור</button>
+          </div>
+          <div id="readerTitle" class="reader-title">טוען...</div>
+          <div id="readerMeta" class="meta"></div>
+          <div id="readerBody"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-19 23:45</div>
 
     <script>
       const statusEl = document.getElementById('status');
       const gridEl = document.getElementById('newsGrid');
+      const readerEl = document.getElementById('reader');
+      const readerTitleEl = document.getElementById('readerTitle');
+      const readerMetaEl = document.getElementById('readerMeta');
+      const readerBodyEl = document.getElementById('readerBody');
+      let currentArticleUrl = '';
+
 
       const SOURCES = {
         all: [
@@ -107,6 +134,51 @@
         });
       }
 
+      async function fetchRaw(url) {
+        const capHttp = window.CapacitorHttp || window.Capacitor?.Plugins?.CapacitorHttp;
+        const isNative = !!window.Capacitor?.isNativePlatform?.();
+        if (isNative && capHttp?.get) {
+          const r = await capHttp.get({ url, headers: { 'User-Agent': 'Mozilla/5.0' } });
+          return typeof r.data === 'string' ? r.data : JSON.stringify(r.data || '');
+        }
+        const r = await fetch(url);
+        return await r.text();
+      }
+
+      function extractReadable(html) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        [...doc.querySelectorAll('script,style,noscript,iframe,header,footer,nav,aside,.ad,.ads,.advertisement,[role="banner"]')].forEach(el => el.remove());
+        const container = doc.querySelector('article') || doc.querySelector('main') || doc.body;
+        const title = (doc.querySelector('meta[property="og:title"]')?.content || doc.querySelector('title')?.textContent || '').trim();
+        const paragraphs = [...container.querySelectorAll('p')]
+          .map(p => (p.textContent || '').trim())
+          .filter(t => t.length > 50)
+          .slice(0, 70);
+        return { title, paragraphs };
+      }
+
+      async function openArticle(url, fallbackTitle='') {
+        currentArticleUrl = url;
+        readerEl.classList.add('open');
+        readerTitleEl.textContent = 'טוען כתבה...';
+        readerMetaEl.textContent = '';
+        readerBodyEl.innerHTML = '<div class="meta">מחלץ תוכן נקי ללא פרסומות...</div>';
+        try {
+          const html = await fetchRaw(url);
+          const parsed = extractReadable(html);
+          readerTitleEl.textContent = parsed.title || fallbackTitle || 'כתבה';
+          readerMetaEl.textContent = parsed.paragraphs.length ? `נטענו ${parsed.paragraphs.length} פסקאות` : 'לא אותר תוכן מלא. אפשר לפתוח מקור.';
+          if (!parsed.paragraphs.length) {
+            readerBodyEl.innerHTML = '<div class="warn">לא הצלחתי לחלץ תוכן מלא מהכתבה הזו.</div>';
+          } else {
+            readerBodyEl.innerHTML = parsed.paragraphs.map(p => `<p class="reader-p">${p.replace(/</g,'&lt;')}</p>`).join('');
+          }
+        } catch (e) {
+          readerTitleEl.textContent = fallbackTitle || 'שגיאה בטעינת כתבה';
+          readerBodyEl.innerHTML = `<div class="warn">שגיאה בחילוץ כתבה: ${String(e.message || e)}</div>`;
+        }
+      }
+
       async function loadNews(force = false) {
         const mode = document.getElementById('sourceSelect').value;
         const feeds = SOURCES[mode] || SOURCES.all;
@@ -139,7 +211,7 @@
           div.className = 'card';
           const when = n.ts ? new Date(n.ts).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : (n.pubDate || '');
           div.innerHTML = `
-            <div class="title"><a href="${n.link}" target="_blank" rel="noopener">${n.title}</a></div>
+            <div class="title"><a href="#" class="open-article" data-url="${n.link.replace(/"/g, "&quot;")}">${n.title}</a></div>
             <div class="row">
               <div class="meta">${when}</div>
               <div class="chip">${n.source || 'מקור לא ידוע'}</div>
@@ -154,6 +226,14 @@
 
       document.getElementById('refreshBtn').addEventListener('click', () => loadNews(true));
       document.getElementById('sourceSelect').addEventListener('change', () => loadNews(true));
+      gridEl.addEventListener('click', (e) => {
+        const a = e.target.closest('.open-article');
+        if (!a) return;
+        e.preventDefault();
+        openArticle(a.getAttribute('data-url') || '', a.textContent || '');
+      });
+      document.getElementById('closeReader').addEventListener('click', () => readerEl.classList.remove('open'));
+      document.getElementById('openOriginal').addEventListener('click', () => { if (currentArticleUrl) window.open(currentArticleUrl, '_blank'); });
 
       loadNews();
       setInterval(() => loadNews(false), 5 * 60 * 1000);
