@@ -66,6 +66,8 @@
       .news li { margin-bottom: 10px; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
       .meta { color: #99a6dd; font-size: 12px; }
       .footer-brand { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7f8dc6; opacity: .9; pointer-events: none; }
+      .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background:#101a38; border:1px solid #2f3f79; color:#e8ecff; padding:6px 10px; border-radius:999px; font-size:12px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:99; }
+      .toast.show { opacity: 0.95; }
       .focus-mode .news { display:none; }
     </style>
   </head>
@@ -141,15 +143,17 @@
     </div>
 
     <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build — · Refresh —</div>
+    <div id="toast" class="toast"></div>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script>
-      const BUILD_STAMP = 'Build 2026-02-19 19:39';
+      const BUILD_STAMP = 'Build 2026-02-19 23:20';
       const money = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const statusEl = document.getElementById('status');
       const newsUpdatedEl = document.getElementById('newsUpdatedAt');
       const dataStatusEl = document.getElementById('dataStatus');
       const marketEl = document.getElementById('marketStatus');
       const footerEl = document.getElementById('footerBrand');
+      const toastEl = document.getElementById('toast');
       const DEFAULT_LIST = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOG', 'META', 'TSLA'];
       const LS_KEY = 'mag7_watchlist_v1';
       const LS_PIN_KEY = 'mag7_pins_v1';
@@ -286,6 +290,15 @@
         footerEl.textContent = `Doozy Software Inc. · ${BUILD_STAMP} · Refresh ${tsText || '—'}`;
       }
 
+      let toastTimer = null;
+      function showToast(msg) {
+        if (!toastEl) return;
+        toastEl.textContent = msg;
+        toastEl.classList.add('show');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1200);
+      }
+
       function updateMarketStatus() {
         const now = new Date();
         const parts = new Intl.DateTimeFormat('en-US', {
@@ -410,6 +423,7 @@
         const prevH = box.offsetHeight;
         if (prevH > 0) box.style.minHeight = `${prevH}px`;
         box.innerHTML = '';
+        const frag = document.createDocumentFragment();
         for (const q of rows) {
           const isDown = Number(q.change || 0) < 0;
           const cls = isDown ? 'down' : 'up';
@@ -462,8 +476,9 @@
           }
           alertState[q.symbol] = nowState;
 
-          box.appendChild(div);
+          frag.appendChild(div);
         }
+        box.appendChild(frag);
         setAlertState(alertState);
         setAlertLastFire(alertLastFire);
         if (triggers.length) statusEl.textContent = `התראת מחיר: ${triggers.join(' | ')}`;
@@ -522,20 +537,23 @@
 
         const list = document.getElementById('news');
         list.innerHTML = '';
+        const fragNews = document.createDocumentFragment();
         const watch = getWatchlist();
         if (!items.length) {
           const li = document.createElement('li');
           li.innerHTML = '<span class="meta">אין כרגע כותרות מה-24 שעות האחרונות.</span>';
-          list.appendChild(li);
+          fragNews.appendChild(li);
         }
         for (const n of items) {
           const li = document.createElement('li');
           const title = n.title || '';
           const matched = watch.filter(sym => new RegExp(`\b${sym}\b`, 'i').test(title));
           const tags = matched.map(sym => `<span class="pin-btn" style="margin-inline-start:4px;">${sym}</span>`).join(' ');
-          li.innerHTML = `<a href="${n.link}" target="_blank" rel="noopener">${title}</a> ${tags} <button class="translate-btn" data-title="${title.replace(/"/g, '&quot;')}">תרגם</button><div class="meta">${n.source || ''} · ${n.pubDate || ''}</div><div class="tiny translation"></div>`;
-          list.appendChild(li);
+          const pub = n.ts ? new Date(n.ts).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : (n.pubDate || '');
+          li.innerHTML = `<a href="${n.link}" target="_blank" rel="noopener">${title}</a> ${tags} <button class="translate-btn" data-title="${title.replace(/"/g, '&quot;')}">תרגם</button><div class="meta">${n.source || ''} · ${pub}</div><div class="tiny translation"></div>`;
+          fragNews.appendChild(li);
         }
+        list.appendChild(fragNews);
         const t = new Date();
         newsUpdatedEl.textContent = `עודכן לאחרונה: ${t.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
       }
@@ -684,6 +702,7 @@
         btn.disabled = true;
         try {
           await loadQuotes(false);
+          showToast('רענון נתונים הושלם');
         } catch {
           statusEl.textContent = 'רענון נתונים נכשל, נסה שוב.';
         } finally {
@@ -731,6 +750,7 @@
         try {
           await loadNews(true);
           statusEl.textContent = '';
+          showToast('רענון חדשות הושלם');
         } catch {
           statusEl.textContent = 'רענון חדשות נכשל, נסה שוב.';
         } finally {
