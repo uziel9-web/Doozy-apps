@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: doozy-news-extractor
+    env: node
+    plan: free
+    rootDir: projects/trading/doozy-news
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
