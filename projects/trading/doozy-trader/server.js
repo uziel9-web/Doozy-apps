@@ -2,14 +2,26 @@ const express = require('express');
 const path = require('path');
 const net = require('net');
 const { execFile } = require('child_process');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 5190;
 const IBKR_HOST = process.env.IBKR_HOST || '127.0.0.1';
 const IBKR_PORT = Number(process.env.IBKR_PORT || 7497);
+const APP_API_KEY = process.env.APP_API_KEY || '';
 
+app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+function authGuard(req, res, next) {
+  if (!APP_API_KEY) return next(); // dev mode
+  const key = req.get('x-api-key') || '';
+  if (key !== APP_API_KEY) return res.status(401).json({ ok: false, error: 'unauthorized' });
+  next();
+}
+
+app.use('/api', authGuard);
 
 // Health
 app.get('/api/health', (_req, res) => {

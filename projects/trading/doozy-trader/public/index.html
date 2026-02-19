@@ -13,6 +13,7 @@
     .topline { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:8px 0; flex-wrap:wrap; }
     .market-pill { font-size:12px; color:#c9d4ff; background:#111a3a; border:1px solid #2b386e; border-radius:999px; padding:6px 10px; }
     .toolbar { display:flex; gap:8px; margin: 10px 0 12px; flex-wrap:wrap; }
+    .toolbar .wide { min-width: 280px; flex: 1; }
     .toolbar input, .toolbar select { background:#0f1630; border:1px solid #283157; color:#e8ecff; border-radius:8px; padding:10px; font-size:14px; }
     .toolbar button { background:#26346a; border:1px solid #3a4a8e; color:#fff; border-radius:8px; padding:10px 12px; font-weight:700; }
     .grid { display:grid; gap:10px; grid-template-columns:1fr; }
@@ -43,11 +44,20 @@
 
     <div class="card">
       <div class="row">
+        <input id="backendUrl" class="wide" placeholder="Backend URL (e.g. https://api.example.com)" />
+        <button id="saveBackend">Save Backend</button>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <input id="apiKey" class="wide" placeholder="API Key (optional in dev)" />
+        <button id="saveApiKey">Save API Key</button>
+      </div>
+      <div class="row" style="margin-top:8px;">
         <button id="refresh">רענן מצב</button>
         <input id="symbols" value="AAPL,MSFT,NVDA" style="min-width:240px" />
         <button id="loadQuotes">טען Quotes</button>
       </div>
-      <div class="meta" style="margin-top:8px;">הערה: כרגע אצלך מתקבל delayed market data מ-IBKR API.</div>
+      <div id="backendHint" class="meta" style="margin-top:8px;">Backend not set.</div>
+      <div class="meta" style="margin-top:4px;">Note: delayed/live depends on your IBKR market data entitlements.</div>
     </div>
 
     <div id="quotes" class="grid"></div>
@@ -75,19 +85,57 @@
   <div class="footer-brand">Doozy Software Inc.</div>
 
   <script>
+    const LS_BACKEND = 'doozy_backend_url_v1';
+    const LS_API_KEY = 'doozy_api_key_v1';
+
     function fmt(v) {
       return (typeof v === 'number' && Number.isFinite(v)) ? v.toFixed(2) : '—';
+    }
+
+    function getBackendBase() {
+      return (localStorage.getItem(LS_BACKEND) || '').trim().replace(/\/$/, '');
+    }
+
+    function getApiKey() {
+      return (localStorage.getItem(LS_API_KEY) || '').trim();
+    }
+
+    function apiUrl(path) {
+      const base = getBackendBase();
+      return base ? `${base}${path}` : path;
+    }
+
+    function refreshBackendHint() {
+      const base = getBackendBase();
+      const hasKey = !!getApiKey();
+      document.getElementById('backendHint').textContent = base
+        ? `Backend: ${base} · API key: ${hasKey ? 'set' : 'not set'}`
+        : 'Backend not set. App will try local relative /api.';
+      document.getElementById('backendUrl').value = base;
+      document.getElementById('apiKey').value = getApiKey();
+    }
+
+    async function fetchJsonSafe(url, opts = {}) {
+      const headers = Object.assign({}, opts.headers || {});
+      const key = getApiKey();
+      if (key) headers['x-api-key'] = key;
+      const r = await fetch(url, Object.assign({}, opts, { headers }));
+      const txt = await r.text();
+      try {
+        return JSON.parse(txt);
+      } catch {
+        throw new Error('Backend not reachable from APK (non-JSON response).');
+      }
     }
 
     async function refreshStatus() {
       const el = document.getElementById('ibkrStatus');
       try {
-        const r = await fetch('/api/ibkr/status');
-        const j = await r.json();
-        el.textContent = j.connected ? 'IBKR מחובר ✅ (Paper)' : (j.message || 'לא מחובר');
+        const j = await fetchJsonSafe(apiUrl('/api/ibkr/status'));
+        el.textContent = j.connected ? 'IBKR connected ✅ (Paper)' : (j.message || 'Not connected');
         el.style.color = j.connected ? '#77e4aa' : '#ffd27f';
       } catch {
-        el.textContent = 'שגיאת תקשורת';
+        el.textContent = 'No backend connection (APK is standalone).';
       }
     }
 
@@ -96,8 +144,7 @@
       const box = document.getElementById('quotes');
       box.innerHTML = '<div class="card muted">טוען...</div>';
       try {
-        const r = await fetch(`/api/ibkr/quotes?symbols=${encodeURIComponent(symbols)}`);
-        const j = await r.json();
+        const j = await fetchJsonSafe(apiUrl(`/api/ibkr/quotes?symbols=${encodeURIComponent(symbols)}`));
         if (!j.ok) throw new Error(j.error || 'quote_error');
         box.innerHTML = '';
         for (const q of (j.quotes || [])) {
@@ -116,7 +163,7 @@
           box.appendChild(div);
         }
       } catch (e) {
-        box.innerHTML = `<div class="card warn">שגיאה בטעינת Quotes: ${e.message}</div>`;
+        box.innerHTML = `<div class="card warn">Quotes error: ${e.message}<br><span class="meta">Tip: APK needs a reachable backend URL for IBKR endpoints.</span></div>`;
       }
     }
 
@@ -125,8 +172,7 @@
       const box = document.getElementById('suggestions');
       box.innerHTML = '<div class="card muted">Loading scanner...</div>';
       try {
-        const r = await fetch(`/api/scanner/suggestions?symbols=${encodeURIComponent(symbols)}`);
-        const j = await r.json();
+        const j = await fetchJsonSafe(apiUrl(`/api/scanner/suggestions?symbols=${encodeURIComponent(symbols)}`));
         if (!j.ok) throw new Error(j.error || 'scanner_error');
         box.innerHTML = '';
         for (const s of (j.suggestions || [])) {
@@ -146,9 +192,25 @@
           box.appendChild(div);
         }
       } catch (e) {
-        box.innerHTML = `<div class="card warn">Scanner error: ${e.message}</div>`;
+        box.innerHTML = `<div class="card warn">Scanner error: ${e.message}<br><span class="meta">Tip: scanner runs on backend; APK alone cannot call local /api.</span></div>`;
       }
     }
+
+    document.getElementById('saveBackend').addEventListener('click', () => {
+      const v = (document.getElementById('backendUrl').value || '').trim();
+      if (v) localStorage.setItem(LS_BACKEND, v.replace(/\/$/, ''));
+      else localStorage.removeItem(LS_BACKEND);
+      refreshBackendHint();
+      refreshStatus();
+    });
+
+    document.getElementById('saveApiKey').addEventListener('click', () => {
+      const v = (document.getElementById('apiKey').value || '').trim();
+      if (v) localStorage.setItem(LS_API_KEY, v);
+      else localStorage.removeItem(LS_API_KEY);
+      refreshBackendHint();
+      refreshStatus();
+    });
 
     document.getElementById('refresh').addEventListener('click', refreshStatus);
     document.getElementById('loadQuotes').addEventListener('click', loadQuotes);
@@ -158,15 +220,15 @@
       const symbol = document.getElementById('symbol').value.trim().toUpperCase();
       const side = document.getElementById('side').value;
       const qty = Number(document.getElementById('qty').value || 0);
-      const r = await fetch('/api/orders/preview', {
+      const j = await fetchJsonSafe(apiUrl('/api/orders/preview'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, side, qty, type: 'MKT' })
       });
-      const j = await r.json();
       document.getElementById('previewOut').textContent = JSON.stringify(j, null, 2);
     });
 
+    refreshBackendHint();
     refreshStatus();
     loadQuotes();
     loadSuggestions();
