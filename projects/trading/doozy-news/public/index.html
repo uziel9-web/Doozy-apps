@@ -65,7 +65,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 00:50</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 01:05</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -109,6 +109,14 @@
         }
         const r = await fetch(url);
         return await r.text();
+      }
+
+
+      async function httpTextWithTimeout(url, timeoutMs = 7000) {
+        return await Promise.race([
+          httpText(url),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
+        ]);
       }
 
       function escapeHtml(str) {
@@ -227,20 +235,26 @@
         if (prevH > 0) gridEl.style.minHeight = `${prevH}px`;
         statusEl.textContent = 'טוען כותרות...';
 
+        const requests = feeds.map(async (f) => {
+          const bust = force ? (f.url.includes('?') ? '&' : '?') + 't=' + Date.now() : '';
+          const xml = await httpTextWithTimeout(f.url + bust, 7000);
+          return parseItems(xml, f.name);
+        });
+        const settled = await Promise.allSettled(requests);
         const all = [];
-        for (const f of feeds) {
-          try {
-            const bust = force ? (f.url.includes('?') ? '&' : '?') + 't=' + Date.now() : '';
-            const xml = await httpText(f.url + bust);
-            all.push(...parseItems(xml, f.name));
-          } catch {}
+        let okFeeds = 0;
+        for (const r of settled) {
+          if (r.status === 'fulfilled') {
+            okFeeds += 1;
+            all.push(...(r.value || []));
+          }
         }
 
         const rows = uniqByLink(all).sort((a,b) => b.ts - a.ts).slice(0, 60);
         gridEl.innerHTML = '';
 
         if (!rows.length) {
-          gridEl.innerHTML = '<div class="card warn">לא הצלחתי למשוך כותרות כרגע. ננסה שוב ברענון.</div>';
+          gridEl.innerHTML = '<div class="card warn">לא הצלחתי למשוך כותרות כרגע. ייתכן שחלק מהמקורות איטיים/חסומים כרגע. נסה שוב בעוד דקה.</div>';
           statusEl.textContent = 'אין נתונים כרגע';
           gridEl.style.minHeight = '';
           return;
@@ -262,6 +276,7 @@
         }
         gridEl.appendChild(frag);
         statusEl.textContent = `נטענו ${rows.length} כותרות`;
+        if (!rows.length) statusEl.textContent = 'אין כותרות כרגע מהמקורות שנבחרו';
         requestAnimationFrame(() => { gridEl.style.minHeight = ''; });
       }
 
