@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">MAG7 Dashboard</string>
-    <string name="title_activity_main">MAG7 Dashboard</string>
+    <string name="app_name">Doozy Dashboard</string>
+    <string name="title_activity_main">Doozy Dashboard</string>
     <string name="package_name">com.uziel.mag7dashboard</string>
     <string name="custom_url_scheme">com.uziel.mag7dashboard</string>
 </resources>

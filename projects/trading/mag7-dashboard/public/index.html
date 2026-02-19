@@ -3,14 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MAG-7 Dashboard</title>
+    <title>Doozy Dashboard</title>
     <style>
       body { font-family: Arial, sans-serif; margin: 0; background: #0b1020; color: #e8ecff; }
       .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
       h1 { margin: 0 0 6px; }
       .sub { color: #a9b4e7; margin-bottom: 16px; }
       .grid { display: grid; gap: 10px; grid-template-columns: 1fr; }
+      .compact-mode .wrap { padding: 12px; }
+      .compact-mode .grid { gap: 7px; }
+      .compact-mode .card { padding:7px 9px; border-radius:8px; }
+      .compact-mode .sym { font-size:17px; }
+      .compact-mode .price { font-size:24px; }
+      .compact-mode .chg { font-size:11px; }
+      .compact-mode .news { padding:10px; }
+      .compact-mode .news li { margin-bottom:7px; }
+      .compact-mode .news h2 { font-size:20px; }
       .card { background: #141b34; border: 1px solid #283157; border-radius: 10px; padding: 10px 12px; display:flex; align-items:center; justify-content:space-between; }
+      .card.upbg { background: linear-gradient(0deg, rgba(49,115,84,.22), rgba(49,115,84,.22)), #141b34; }
+      .card.downbg { background: linear-gradient(0deg, rgba(122,52,72,.22), rgba(122,52,72,.22)), #141b34; }
       .left { display:flex; flex-direction:column; gap:2px; }
       .sym { font-weight: 700; font-size: 20px; line-height:1; }
       .name { color: #a9b4e7; font-size: 11px; }
@@ -19,41 +30,119 @@
       .down { color: #ff6b81; }
       .chg { font-size: 13px; text-align:left; }
       .source { color:#8f9bd0; font-size:12px; margin-bottom:8px; }
+      .topline { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:8px 0; }
+      .market-pill { font-size:12px; color:#c9d4ff; background:#111a3a; border:1px solid #2b386e; border-radius:999px; padding:6px 10px; }
+      .market-pill.open { color:#9ff0c7; border-color:#2b8a5f; }
+      .market-pill.closed { color:#ffb4b4; border-color:#8a2b47; }
       .toolbar { display:flex; gap:8px; margin: 10px 0 12px; }
       .toolbar input { flex:1; background:#0f1630; border:1px solid #283157; color:#e8ecff; border-radius:8px; padding:10px; font-size:14px; }
       .toolbar button { background:#26346a; border:1px solid #3a4a8e; color:#fff; border-radius:8px; padding:10px 12px; font-weight:700; }
       .actions { display:flex; align-items:center; gap:6px; margin-right:8px; }
-      .icon-btn { border:0; background:transparent; color:#9fb0f0; font-size:18px; }
+      .drag-handle { color:#9fb0f0; font-size:20px; opacity:.85; }
+      .hint { color:#8ea0dd; font-size:11px; margin-top:4px; }
       .news { margin-top: 18px; background: #141b34; border: 1px solid #283157; border-radius: 12px; padding: 14px; direction:ltr; text-align:left; }
-      .news h2 { margin: 0 0 10px; font-size: 20px; direction:rtl; text-align:right; }
+      .news-head { display:flex; flex-direction:column; align-items:stretch; gap:8px; margin-bottom:10px; }
+      .news-head .controls { display:flex; gap:6px; align-items:center; justify-content:flex-start; flex-wrap:wrap; }
+      .news h2 { margin: 0; font-size: 22px; line-height:1.2; direction:rtl; text-align:right; }
+      .refresh-btn, .mini-select { background:#26346a; border:1px solid #3a4a8e; color:#fff; border-radius:8px; padding:6px 10px; font-size:12px; }
+      .pin-btn,.alert-btn,.translate-btn { background:transparent; border:1px solid #3a4a8e; color:#cdd7ff; border-radius:8px; padding:3px 6px; font-size:11px; }
+      .tiny { font-size:11px; color:#9eb0ea; }
       .news a { color: #dbe2ff; text-decoration: none; }
       .news a:hover { text-decoration: underline; }
       .news li { margin-bottom: 10px; }
       .meta { color: #99a6dd; font-size: 12px; }
+      .footer-brand { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7f8dc6; opacity: .9; pointer-events: none; }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <h1>MAG-7 Dashboard</h1>
+      <h1>Doozy Dashboard</h1>
       <div class="sub">מחירי מניות + חדשות כלכליות במסך אחד</div>
       <div id="status" class="sub" style="color:#ffb4b4"></div>
       <div class="source">מקור נתונים: Stooq (עיכוב קל אפשרי). שינוי מחושב מול הסגירה הקודמת.</div>
+      <div class="topline">
+        <div id="marketStatus" class="market-pill">מצב שוק: טוען...</div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <label class="tiny">ספק:</label>
+          <select id="providerSelect" class="mini-select">
+            <option value="stooq">Stooq</option>
+            <option value="schwab">Schwab (thinkorswim)</option>
+            <option value="ibkr">IBKR (Gateway)</option>
+          </select>
+          <button id="refreshQuotesBtn" class="refresh-btn">רענן נתונים</button>
+          <button id="schwabTokenBtn" class="refresh-btn">Schwab Token</button>
+          <label class="tiny">ביצועים:</label>
+          <select id="rangeSelect" class="mini-select">
+            <option value="1d">יומי</option>
+            <option value="1w">שבועי</option>
+            <option value="1m">חודשי</option>
+          </select>
+          <label class="tiny">Cooldown:</label>
+          <select id="alertCooldownSelect" class="mini-select">
+            <option value="5">5m</option>
+            <option value="15" selected>15m</option>
+            <option value="30">30m</option>
+            <option value="60">60m</option>
+          </select>
+          <div id="newsUpdatedAt" class="meta">עודכן לאחרונה: —</div>
+          <div id="dataStatus" class="meta">Data: loading…</div>
+        </div>
+      </div>
+      <div class="hint">לחיצה ארוכה וגרירה לשינוי סדר · החלקה הצידה על כרטיס למחיקה · ⭐ להצמדה למעלה · 🔔 התראת מחיר</div>
       <div class="toolbar">
         <input id="symbolInput" placeholder="הוסף סימבול (למשל NFLX)" />
         <button id="addBtn">הוסף</button>
+        <select id="presetSelect" class="mini-select">
+          <option value="mag7">MAG7</option>
+          <option value="ai">AI</option>
+          <option value="custom">Custom (no change)</option>
+        </select>
+        <button id="applyPresetBtn">החל Preset</button>
+        <button id="exportBtn">יצוא</button>
+        <button id="importBtn">יבוא</button>
       </div>
       <div id="quotes" class="grid"></div>
       <div class="news">
-        <h2>חדשות שוק (טק / AI)</h2>
+        <div class="news-head">
+          <h2>חדשות שוק (טק / AI)</h2>
+          <div class="controls">
+            <select id="newsTopic" class="mini-select">
+              <option value="all">All</option>
+              <option value="ai">AI</option>
+              <option value="macro">Macro</option>
+              <option value="earnings">Earnings</option>
+              <option value="geo">Geo</option>
+            </select>
+            <button id="compactBtn" class="refresh-btn">תצוגה קומפקטית</button>
+            <button id="refreshNewsBtn" class="refresh-btn">רענן</button>
+          </div>
+        </div>
         <ul id="news"></ul>
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script>
       const money = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const statusEl = document.getElementById('status');
+      const newsUpdatedEl = document.getElementById('newsUpdatedAt');
+      const dataStatusEl = document.getElementById('dataStatus');
+      const marketEl = document.getElementById('marketStatus');
       const DEFAULT_LIST = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOG', 'META', 'TSLA'];
+      const PRESETS = {
+        mag7: ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOG', 'META', 'TSLA'],
+        ai: ['NVDA', 'AMD', 'SMCI', 'PLTR', 'META', 'MSFT', 'GOOG']
+      };
       const LS_KEY = 'mag7_watchlist_v1';
+      const LS_PIN_KEY = 'mag7_pins_v1';
+      const LS_ALERT_KEY = 'mag7_alerts_v1';
+      const LS_ALERT_STATE_KEY = 'mag7_alert_state_v1';
+      const LS_RANGE_KEY = 'mag7_range_v1';
+      const LS_VIEW_KEY = 'mag7_view_compact_v1';
+      const LS_PROVIDER_KEY = 'mag7_provider_v1';
+      const LS_SCHWAB_TOKEN = 'mag7_schwab_token_v1';
+      const LS_ALERT_COOLDOWN_MIN = 'mag7_alert_cooldown_min_v1';
+      const LS_ALERT_LAST_FIRE = 'mag7_alert_last_fire_v1';
 
       function getWatchlist() {
         try {
@@ -67,33 +156,170 @@
       function setWatchlist(list) {
         localStorage.setItem(LS_KEY, JSON.stringify(list));
       }
+      function getPins() {
+        try { return JSON.parse(localStorage.getItem(LS_PIN_KEY) || '[]'); } catch { return []; }
+      }
+      function setPins(pins) { localStorage.setItem(LS_PIN_KEY, JSON.stringify(pins)); }
+      function getAlerts() {
+        try { return JSON.parse(localStorage.getItem(LS_ALERT_KEY) || '{}'); } catch { return {}; }
+      }
+      function setAlerts(v) { localStorage.setItem(LS_ALERT_KEY, JSON.stringify(v)); }
+      function getAlertState() {
+        try { return JSON.parse(localStorage.getItem(LS_ALERT_STATE_KEY) || '{}'); } catch { return {}; }
+      }
+      function setAlertState(v) { localStorage.setItem(LS_ALERT_STATE_KEY, JSON.stringify(v)); }
+      function getRange() { return localStorage.getItem(LS_RANGE_KEY) || '1d'; }
+      function setRange(v) { localStorage.setItem(LS_RANGE_KEY, v); }
+      function getProvider() { return localStorage.getItem(LS_PROVIDER_KEY) || 'stooq'; }
+      function setProvider(v) { localStorage.setItem(LS_PROVIDER_KEY, v); }
+      function getSchwabToken() { return localStorage.getItem(LS_SCHWAB_TOKEN) || ''; }
+      function setSchwabToken(v) { localStorage.setItem(LS_SCHWAB_TOKEN, v || ''); }
+      function getAlertCooldownMin() { return Number(localStorage.getItem(LS_ALERT_COOLDOWN_MIN) || 15); }
+      function setAlertCooldownMin(v) { localStorage.setItem(LS_ALERT_COOLDOWN_MIN, String(v)); }
+      function getAlertLastFire() { try { return JSON.parse(localStorage.getItem(LS_ALERT_LAST_FIRE) || '{}'); } catch { return {}; } }
+      function setAlertLastFire(v) { localStorage.setItem(LS_ALERT_LAST_FIRE, JSON.stringify(v)); }
+      function isCompactView() { return localStorage.getItem(LS_VIEW_KEY) === '1'; }
+      function setCompactView(v) { localStorage.setItem(LS_VIEW_KEY, v ? '1' : '0'); }
 
-      async function httpText(url) {
+      async function httpText(url, headers = {}) {
         const capHttp = window.CapacitorHttp || window.Capacitor?.Plugins?.CapacitorHttp;
         const isNative = !!window.Capacitor?.isNativePlatform?.();
         if (isNative && capHttp?.get) {
-          const r = await capHttp.get({ url });
+          const r = await capHttp.get({ url, headers });
           return typeof r.data === 'string' ? r.data : JSON.stringify(r.data);
         }
-        const r = await fetch(url);
+        const r = await fetch(url, { headers });
         return await r.text();
       }
+      async function httpJson(url, headers = {}) {
+        const capHttp = window.CapacitorHttp || window.Capacitor?.Plugins?.CapacitorHttp;
+        const isNative = !!window.Capacitor?.isNativePlatform?.();
+        if (isNative && capHttp?.get) {
+          const r = await capHttp.get({ url, headers });
+          return typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+        }
+        const r = await fetch(url, { headers });
+        return await r.json();
+      }
 
-      async function loadQuotes() {
+      function sparkline(values) {
+        const ticks = '▁▂▃▄▅▆▇█';
+        if (!values || values.length < 2) return '—';
+        const min = Math.min(...values), max = Math.max(...values);
+        const span = (max - min) || 1;
+        return values.map(v => ticks[Math.max(0, Math.min(7, Math.round(((v - min) / span) * 7)))]).join('');
+      }
+
+      function updateMarketStatus() {
+        const now = new Date();
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York', hour12: false,
+          weekday: 'short', hour: '2-digit', minute: '2-digit'
+        }).formatToParts(now);
+        const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+        const hh = Number(map.hour || 0), mm = Number(map.minute || 0);
+        const day = map.weekday;
+        const mins = hh * 60 + mm;
+        const open = 9 * 60 + 30, close = 16 * 60;
+        const weekdays = ['Mon','Tue','Wed','Thu','Fri'];
+        const dayIdx = weekdays.indexOf(day);
+        const isWeekday = dayIdx >= 0;
+        const isOpen = isWeekday && mins >= open && mins < close;
+
+        let left;
+        if (isOpen) {
+          left = close - mins;
+          marketEl.classList.remove('closed');
+          marketEl.classList.add('open');
+          marketEl.textContent = `OPEN · closes in ${Math.floor(left/60)}h ${left%60}m`;
+          return;
+        }
+
+        let daysToNext = 0;
+        if (!isWeekday) {
+          daysToNext = day === 'Sat' ? 2 : 1;
+        } else if (mins >= close) {
+          daysToNext = day === 'Fri' ? 3 : 1;
+        }
+        const untilOpen = (daysToNext * 24 * 60) + (open - mins);
+        const fixed = untilOpen > 0 ? untilOpen : (open - mins);
+        marketEl.classList.remove('open');
+        marketEl.classList.add('closed');
+        marketEl.textContent = `CLOSED · opens in ${Math.floor(fixed/60)}h ${fixed%60}m`;
+      }
+
+      async function loadQuotes(force = false) {
+        dataStatusEl.textContent = 'Data: refreshing…';
         const watchlist = getWatchlist();
-        const rows = await Promise.all(
-          watchlist.map(async (sym) => {
-            const raw = await httpText(`https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&i=d`);
-            const lines = raw.trim().split('\n');
-            const last = lines[lines.length - 1]?.split(',') || [];
-            const prev = lines[lines.length - 2]?.split(',') || [];
-            const close = Number(last[4] || 0);
-            const prevClose = Number(prev[4] || close || 0);
-            const change = close - prevClose;
-            const changePct = prevClose ? (change / prevClose) * 100 : 0;
-            return { symbol: sym, name: sym, price: close, change, changePct };
-          })
-        );
+        const pins = new Set(getPins());
+        const range = getRange();
+        const provider = getProvider();
+        const bust = force ? `&t=${Date.now()}` : '';
+
+        let rows = [];
+        if (provider === 'ibkr') {
+          statusEl.textContent = 'IBKR מוכן לחיבור. צריך להפעיל IB Gateway על המחשב (Paper, פורט 7497) ואז אמשיך אוטומציה מלאה.';
+          const back = range === '1m' ? 22 : range === '1w' ? 6 : 2;
+          rows = await Promise.all(
+            watchlist.map(async (sym) => {
+              const raw = await httpText(`https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&i=d${bust}`);
+              const lines = raw.trim().split('\n').slice(1).filter(Boolean);
+              const row = (i) => (lines[i] || '').split(',');
+              const last = row(lines.length - 1);
+              const prev = row(Math.max(0, lines.length - back));
+              const close = Number(last[4] || 0);
+              const prevClose = Number(prev[4] || close || 0);
+              const closes = lines.slice(-8).map(l => Number((l.split(',')[4] || 0))).filter(n => n > 0);
+              const change = close - prevClose;
+              const changePct = prevClose ? (change / prevClose) * 100 : 0;
+              return { symbol: sym, name: sym, price: close, change, changePct, pinned: pins.has(sym), delayed: true, spark: sparkline(closes) };
+            })
+          );
+        } else if (provider === 'schwab') {
+          const token = getSchwabToken();
+          if (!token) {
+            statusEl.textContent = 'חסר Schwab access token. לחץ על Schwab Token למעלה.';
+            rows = watchlist.map((sym) => ({ symbol: sym, name: sym, price: 0, change: 0, changePct: 0, pinned: pins.has(sym), delayed: true }));
+          } else {
+            const symbols = encodeURIComponent(watchlist.join(','));
+            const data = await httpJson(`https://api.schwabapi.com/marketdata/v1/quotes?symbols=${symbols}&fields=quote,reference`, {
+              Authorization: `Bearer ${token}`
+            });
+            rows = watchlist.map((sym) => {
+              const q = data?.[sym]?.quote || data?.[sym.toUpperCase()]?.quote || {};
+              const ref = data?.[sym]?.reference || data?.[sym.toUpperCase()]?.reference || {};
+              const price = Number(q.lastPrice ?? q.mark ?? 0);
+              const change = Number(q.netChange ?? 0);
+              const changePct = Number(q.netPercentChangeInDouble ?? 0);
+              return { symbol: sym, name: ref.description || sym, price, change, changePct, pinned: pins.has(sym), delayed: false, spark: '▁▂▃▄▅' };
+            });
+          }
+        } else {
+          const back = range === '1m' ? 22 : range === '1w' ? 6 : 2;
+          rows = await Promise.all(
+            watchlist.map(async (sym) => {
+              const raw = await httpText(`https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&i=d${bust}`);
+              const lines = raw.trim().split('\n').slice(1).filter(Boolean);
+              const row = (i) => (lines[i] || '').split(',');
+              const last = row(lines.length - 1);
+              const prev = row(Math.max(0, lines.length - back));
+              const close = Number(last[4] || 0);
+              const prevClose = Number(prev[4] || close || 0);
+              const closes = lines.slice(-8).map(l => Number((l.split(',')[4] || 0))).filter(n => n > 0);
+              const change = close - prevClose;
+              const changePct = prevClose ? (change / prevClose) * 100 : 0;
+              return { symbol: sym, name: sym, price: close, change, changePct, pinned: pins.has(sym), delayed: true, spark: sparkline(closes) };
+            })
+          );
+        }
+
+        rows.sort((a, b) => (b.pinned - a.pinned) || (watchlist.indexOf(a.symbol) - watchlist.indexOf(b.symbol)));
+
+        const alerts = getAlerts();
+        const alertState = getAlertState();
+        const alertLastFire = getAlertLastFire();
+        const cooldownMs = getAlertCooldownMin() * 60 * 1000;
+        const triggers = [];
 
         const box = document.getElementById('quotes');
         box.innerHTML = '';
@@ -101,44 +327,111 @@
           const isUp = (q.change || 0) >= 0;
           const cls = isUp ? 'up' : 'down';
           const sign = isUp ? '+' : '';
+          const alertCfg = alerts[q.symbol] || {};
           const div = document.createElement('div');
-          div.className = 'card';
+          div.className = `card ${isUp ? 'upbg' : 'downbg'}`;
+          div.setAttribute('data-symbol', q.symbol);
           div.innerHTML = `
             <div class="left">
               <div class="sym">${q.symbol}</div>
               <div class="name">${q.name || ''}</div>
+              <div class="tiny">${provider === 'schwab' ? 'שינוי תוך-יומי (live)' : (range === '1d' ? 'שינוי יומי' : range === '1w' ? 'שינוי שבועי' : 'שינוי חודשי')} · ${q.spark || '—'}</div>
             </div>
             <div>
               <div class="price">${money.format(q.price || 0)}</div>
               <div class="chg ${cls}">${sign}${money.format(q.change || 0)} (${sign}${(q.changePct || 0).toFixed(2)}%)</div>
             </div>
             <div class="actions">
-              <button class="icon-btn up-btn" data-symbol="${q.symbol}" title="העבר למעלה">↑</button>
-              <button class="icon-btn down-btn" data-symbol="${q.symbol}" title="העבר למטה">↓</button>
-              <button class="icon-btn remove-btn" data-symbol="${q.symbol}" title="הסר">✕</button>
+              <button class="pin-btn" data-symbol="${q.symbol}" title="הצמד">${q.pinned ? '⭐' : '☆'}</button>
+              <button class="alert-btn" data-symbol="${q.symbol}" title="התראת מחיר">🔔</button>
+              <span class="drag-handle" title="גרור">☰</span>
             </div>
           `;
+          if (alertCfg.upper || alertCfg.lower) {
+            const m = document.createElement('div');
+            m.className = 'tiny';
+            m.textContent = `התראה: ${alertCfg.lower ? '< ' + alertCfg.lower : ''}${(alertCfg.lower && alertCfg.upper) ? ' | ' : ''}${alertCfg.upper ? '> ' + alertCfg.upper : ''}`;
+            div.querySelector('.left').appendChild(m);
+          }
+          if (Math.abs(q.changePct || 0) >= 3) {
+            const risk = document.createElement('div');
+            risk.className = 'tiny';
+            risk.textContent = '⚠️ Volatility risk (|Δ| ≥ 3%)';
+            div.querySelector('.left').appendChild(risk);
+          }
+
+          const prevState = alertState[q.symbol] || {};
+          const nowState = {
+            above: alertCfg.upper ? q.price >= Number(alertCfg.upper) : false,
+            below: alertCfg.lower ? q.price <= Number(alertCfg.lower) : false
+          };
+          const nowTs = Date.now();
+          const lastTs = Number(alertLastFire[q.symbol] || 0);
+          const canFire = (nowTs - lastTs) >= cooldownMs;
+          if (canFire && alertCfg.upper && nowState.above && !prevState.above) {
+            triggers.push(`${q.symbol} מעל ${alertCfg.upper}`);
+            alertLastFire[q.symbol] = nowTs;
+          }
+          if (canFire && alertCfg.lower && nowState.below && !prevState.below) {
+            triggers.push(`${q.symbol} מתחת ${alertCfg.lower}`);
+            alertLastFire[q.symbol] = nowTs;
+          }
+          alertState[q.symbol] = nowState;
+
           box.appendChild(div);
         }
+        setAlertState(alertState);
+        setAlertLastFire(alertLastFire);
+        if (triggers.length) statusEl.textContent = `התראת מחיר: ${triggers.join(' | ')}`;
+        const delayedCount = rows.filter(r => r.delayed).length;
+        const liveCount = rows.length - delayedCount;
+        const ts = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        dataStatusEl.textContent = `Data: ${liveCount > 0 ? `Live ${liveCount}` : ''}${liveCount > 0 && delayedCount > 0 ? ' · ' : ''}${delayedCount > 0 ? `Delayed ${delayedCount}` : ''} · ${ts}`;
+        initSortable();
       }
 
-      async function loadNews() {
-        const xml = await httpText('https://news.google.com/rss/search?q=US%20stock%20market%20technology%20AI&hl=en-US&gl=US&ceid=US:en');
+      async function loadNews(force = false) {
+        const topic = document.getElementById('newsTopic')?.value || 'all';
+        const topicQ = {
+          all: 'US stock market technology AI',
+          ai: 'artificial intelligence tech stocks',
+          macro: 'US economy inflation fed rates market',
+          earnings: 'quarterly earnings mega cap tech',
+          geo: 'geopolitics middle east impact markets oil'
+        }[topic] || 'US stock market technology AI';
+
+        const bust = force ? `&t=${Date.now()}` : '';
+        const q = encodeURIComponent(topicQ);
+        const xml = await httpText(`https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en${bust}`);
         const doc = new DOMParser().parseFromString(xml, 'text/xml');
-        const items = [...doc.querySelectorAll('item')].slice(0, 12).map((it) => ({
+        const scoreNews = (t = '') => {
+          const s = t.toLowerCase();
+          let sc = 0;
+          if (/(ai|artificial intelligence|chip|nvidia|semiconductor)/.test(s)) sc += 3;
+          if (/(earnings|guidance|revenue|profit)/.test(s)) sc += 2;
+          if (/(fed|inflation|rates|macro|bond)/.test(s)) sc += 2;
+          if (/(market|stocks|nasdaq|s&p|dow)/.test(s)) sc += 1;
+          return sc;
+        };
+
+        const items = [...doc.querySelectorAll('item')].map((it) => ({
           title: it.querySelector('title')?.textContent || '',
           link: it.querySelector('link')?.textContent || '',
           pubDate: it.querySelector('pubDate')?.textContent || '',
           source: it.querySelector('source')?.textContent || ''
-        }));
+        })).map(n => ({ ...n, score: scoreNews(n.title) }))
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 12);
 
         const list = document.getElementById('news');
         list.innerHTML = '';
         for (const n of items) {
           const li = document.createElement('li');
-          li.innerHTML = `<a href="${n.link}" target="_blank" rel="noopener">${n.title}</a><div class="meta">${n.source || ''} · ${n.pubDate || ''}</div>`;
+          li.innerHTML = `<a href="${n.link}" target="_blank" rel="noopener">${n.title}</a> <button class="translate-btn" data-title="${(n.title || '').replace(/"/g, '&quot;')}">תרגם</button><div class="meta">Score ${n.score} · ${n.source || ''} · ${n.pubDate || ''}</div><div class="tiny translation"></div>`;
           list.appendChild(li);
         }
+        const t = new Date();
+        newsUpdatedEl.textContent = `עודכן לאחרונה: ${t.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
       }
 
       async function refreshAll() {
@@ -167,48 +460,216 @@
         if (e.key === 'Enter') addSymbol();
       });
 
-      document.getElementById('quotes').addEventListener('click', async (e) => {
-        const remove = e.target.closest('.remove-btn');
-        const up = e.target.closest('.up-btn');
-        const down = e.target.closest('.down-btn');
+      document.getElementById('applyPresetBtn').addEventListener('click', async () => {
+        const key = document.getElementById('presetSelect').value;
+        if (!PRESETS[key]) return;
+        setWatchlist(PRESETS[key]);
+        await loadQuotes(true);
+      });
 
-        if (remove) {
-          const sym = remove.getAttribute('data-symbol');
-          const list = getWatchlist().filter((s) => s !== sym);
-          if (list.length) {
-            setWatchlist(list);
-            await loadQuotes();
-          }
-          return;
-        }
+      document.getElementById('exportBtn').addEventListener('click', () => {
+        const payload = {
+          watchlist: getWatchlist(),
+          pins: getPins(),
+          alerts: getAlerts(),
+          exportedAt: new Date().toISOString()
+        };
+        prompt('Copy backup JSON:', JSON.stringify(payload));
+      });
 
-        if (up) {
-          const sym = up.getAttribute('data-symbol');
-          const list = getWatchlist();
-          const i = list.indexOf(sym);
-          if (i > 0) {
-            [list[i - 1], list[i]] = [list[i], list[i - 1]];
-            setWatchlist(list);
-            await loadQuotes();
-          }
-          return;
-        }
-
-        if (down) {
-          const sym = down.getAttribute('data-symbol');
-          const list = getWatchlist();
-          const i = list.indexOf(sym);
-          if (i >= 0 && i < list.length - 1) {
-            [list[i + 1], list[i]] = [list[i], list[i + 1]];
-            setWatchlist(list);
-            await loadQuotes();
-          }
+      document.getElementById('importBtn').addEventListener('click', async () => {
+        const raw = prompt('Paste backup JSON:');
+        if (!raw) return;
+        try {
+          const data = JSON.parse(raw);
+          if (Array.isArray(data.watchlist) && data.watchlist.length) setWatchlist(data.watchlist.map(x => String(x).toUpperCase()));
+          if (Array.isArray(data.pins)) setPins(data.pins.map(x => String(x).toUpperCase()));
+          if (data.alerts && typeof data.alerts === 'object') setAlerts(data.alerts);
+          await loadQuotes(true);
+        } catch {
+          alert('Invalid backup JSON');
         }
       });
 
+      const quotesEl = document.getElementById('quotes');
+      document.getElementById('rangeSelect').value = getRange();
+      document.getElementById('providerSelect').value = getProvider();
+      document.getElementById('alertCooldownSelect').value = String(getAlertCooldownMin());
+
+      quotesEl.addEventListener('click', async (e) => {
+        const pinBtn = e.target.closest('.pin-btn');
+        if (pinBtn) {
+          const sym = pinBtn.getAttribute('data-symbol');
+          const pins = new Set(getPins());
+          if (pins.has(sym)) pins.delete(sym); else pins.add(sym);
+          setPins([...pins]);
+          await loadQuotes();
+          return;
+        }
+        const alertBtn = e.target.closest('.alert-btn');
+        if (alertBtn) {
+          const sym = alertBtn.getAttribute('data-symbol');
+          const alerts = getAlerts();
+          const current = alerts[sym] || {};
+          const upper = prompt(`התראה ל-${sym}: מחיר מעל (ריק לביטול)`, current.upper ?? '');
+          if (upper === null) return;
+          const lower = prompt(`התראה ל-${sym}: מחיר מתחת (ריק לביטול)`, current.lower ?? '');
+          if (lower === null) return;
+          alerts[sym] = {
+            upper: upper.trim() ? Number(upper) : null,
+            lower: lower.trim() ? Number(lower) : null
+          };
+          if (!alerts[sym].upper && !alerts[sym].lower) delete alerts[sym];
+          setAlerts(alerts);
+          await loadQuotes();
+        }
+      });
+
+      // Swipe-to-delete (touch)
+      let touchStartX = 0, touchStartY = 0;
+      quotesEl.addEventListener('touchstart', (e) => {
+        const card = e.target.closest('.card');
+        if (!card) return;
+        const t = e.changedTouches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+      }, { passive: true });
+
+      quotesEl.addEventListener('touchend', async (e) => {
+        const card = e.target.closest('.card');
+        if (!card) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touchStartX;
+        const dy = Math.abs(t.clientY - touchStartY);
+        if (Math.abs(dx) > 90 && dy < 40) {
+          const sym = card.getAttribute('data-symbol');
+          const ok = confirm(`למחוק את ${sym} מהרשימה?`);
+          if (ok) {
+            const list = getWatchlist().filter((s) => s !== sym);
+            if (list.length) {
+              setWatchlist(list);
+              await loadQuotes();
+            }
+          }
+        }
+      }, { passive: true });
+
+      // Long-press + drag reorder
+      function initSortable() {
+        if (!window.Sortable || quotesEl.dataset.sortableInit === '1') return;
+        window.Sortable.create(quotesEl, {
+          animation: 150,
+          delay: 250,
+          delayOnTouchOnly: true,
+          onEnd: () => {
+            const ordered = [...quotesEl.querySelectorAll('.card')].map((c) => c.getAttribute('data-symbol')).filter(Boolean);
+            if (ordered.length) setWatchlist(ordered);
+          }
+        });
+        quotesEl.dataset.sortableInit = '1';
+      }
+
+      function applyCompactUi() {
+        const compact = isCompactView();
+        document.body.classList.toggle('compact-mode', compact);
+        document.getElementById('compactBtn').textContent = compact ? 'תצוגה מורחבת' : 'תצוגה קומפקטית';
+      }
+
+      document.getElementById('compactBtn').addEventListener('click', () => {
+        setCompactView(!isCompactView());
+        applyCompactUi();
+      });
+
+      document.getElementById('rangeSelect').addEventListener('change', async (e) => {
+        setRange(e.currentTarget.value);
+        await loadQuotes();
+      });
+
+      document.getElementById('providerSelect').addEventListener('change', async (e) => {
+        const p = e.currentTarget.value;
+        setProvider(p);
+        if (p === 'ibkr') {
+          alert('IBKR נבחר. כרגע במצב הכנה עם fallback למחירים. לחיבור אמיתי צריך IB Gateway רץ על המחשב (Paper, 7497).');
+        }
+        await loadQuotes();
+      });
+
+      document.getElementById('alertCooldownSelect').addEventListener('change', (e) => {
+        setAlertCooldownMin(Number(e.currentTarget.value || 15));
+      });
+
+      document.getElementById('refreshQuotesBtn').addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        const orig = btn.textContent;
+        btn.textContent = 'מרענן...';
+        statusEl.textContent = 'מרענן נתוני מניות...';
+        try {
+          await loadQuotes(true);
+          statusEl.textContent = '';
+        } catch {
+          statusEl.textContent = 'רענון נתונים נכשל, נסה שוב.';
+        } finally {
+          btn.disabled = false;
+          btn.textContent = orig;
+        }
+      });
+
+      document.getElementById('schwabTokenBtn').addEventListener('click', async () => {
+        const current = getSchwabToken();
+        const token = prompt('הדבק Schwab Access Token (Bearer). להשאיר ריק למחיקה.', current);
+        if (token === null) return;
+        setSchwabToken(token.trim());
+        await loadQuotes();
+      });
+
+      document.getElementById('newsTopic').addEventListener('change', async () => {
+        await loadNews(true);
+      });
+
+      document.getElementById('news').addEventListener('click', async (e) => {
+        const btn = e.target.closest('.translate-btn');
+        if (!btn) return;
+        const title = btn.getAttribute('data-title') || '';
+        const out = btn.parentElement.querySelector('.translation');
+        if (out.textContent) { out.textContent = ''; return; }
+        btn.disabled = true;
+        btn.textContent = '...';
+        try {
+          const tr = await httpJson(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(title)}&langpair=en|he`);
+          const text = tr?.responseData?.translatedText || '';
+          out.textContent = text || 'תרגום לא זמין כרגע';
+        } catch {
+          out.textContent = 'תרגום לא זמין כרגע';
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'תרגם';
+        }
+      });
+
+      document.getElementById('refreshNewsBtn').addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.textContent = 'מרענן...';
+        statusEl.textContent = 'מרענן חדשות...';
+        try {
+          await loadNews(true);
+          statusEl.textContent = '';
+        } catch {
+          statusEl.textContent = 'רענון חדשות נכשל, נסה שוב.';
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'רענן';
+        }
+      });
+
+      applyCompactUi();
+      updateMarketStatus();
       refreshAll();
       setInterval(loadQuotes, 60000);
       setInterval(loadNews, 300000);
+      setInterval(updateMarketStatus, 60000);
     </script>
+    <div class="footer-brand">Doozy Software Inc.</div>
   </body>
 </html>
