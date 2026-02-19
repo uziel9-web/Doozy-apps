@@ -34,7 +34,6 @@
   <body>
     <div class="wrap">
       <h1>Doozy News</h1>
-      <div class="sub">אגרגציית חדשות בעברית · עיצוב Doozy Dashboard</div>
 
       <div class="topline">
         <div class="controls-grid">
@@ -45,6 +44,10 @@
             <option value="tech">טכנולוגיה</option>
           </select>
           <button id="refreshBtn" class="refresh-btn">רענן חדשות</button>
+        </div>
+        <div class="controls-grid">
+          <input id="backendUrl" class="mini-select" placeholder="Backend URL לחילוץ כתבות מלאות" style="text-align:left;direction:ltr;" />
+          <button id="saveBackendBtn" class="refresh-btn">שמור Backend</button>
         </div>
         <div id="status" class="meta">טוען...</div>
       </div>
@@ -65,7 +68,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 01:05</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 02:05</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -75,10 +78,32 @@
       const readerMetaEl = document.getElementById('readerMeta');
       const readerBodyEl = document.getElementById('readerBody');
       let currentArticleUrl = '';
+      const articleMap = new Map();
+      const LS_BACKEND = 'doozy_news_backend_v1';
 
+
+
+      function getBackendBase() {
+        return (localStorage.getItem(LS_BACKEND) || '').trim().replace(/\/$/, '');
+      }
+      function setBackendBase(v) {
+        const clean = String(v || '').trim().replace(/\/$/, '');
+        if (clean) localStorage.setItem(LS_BACKEND, clean); else localStorage.removeItem(LS_BACKEND);
+      }
+      function apiUrl(path) {
+        const b = getBackendBase();
+        return b ? `${b}${path}` : path;
+      }
+      async function fetchJson(url) {
+        const r = await fetch(url);
+        const t = await r.text();
+        try { return JSON.parse(t); } catch { return { ok:false, error:'non_json' }; }
+      }
 
       const SOURCES = {
         all: [
+          { name: 'Google News HE', url: 'https://news.google.com/rss?hl=he&gl=IL&ceid=IL:he' },
+          { name: 'Google Business HE', url: 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=he&gl=IL&ceid=IL:he' },
           { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
           { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2' },
           { name: 'דה מרקר', url: 'https://www.themarker.com/cmlink/1.628' },
@@ -86,15 +111,18 @@
           { name: 'N12', url: 'https://www.mako.co.il/rss-news?partner=rss' }
         ],
         biz: [
+          { name: 'Google Business HE', url: 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=he&gl=IL&ceid=IL:he' },
           { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
           { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2' },
           { name: 'דה מרקר', url: 'https://www.themarker.com/cmlink/1.628' }
         ],
         general: [
+          { name: 'Google News HE', url: 'https://news.google.com/rss?hl=he&gl=IL&ceid=IL:he' },
           { name: 'ynet', url: 'https://www.ynet.co.il/Integration/StoryRss2.xml' },
           { name: 'N12', url: 'https://www.mako.co.il/rss-news?partner=rss' }
         ],
         tech: [
+          { name: 'Google Tech HE', url: 'https://news.google.com/rss/search?q=%D7%98%D7%9B%D7%A0%D7%95%D7%9C%D7%95%D7%92%D7%99%D7%94&hl=he&gl=IL&ceid=IL:he' },
           { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
           { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=607' }
         ]
@@ -130,8 +158,10 @@
           const link = (it.querySelector('link')?.textContent || '').trim();
           const source = (it.querySelector('source')?.textContent || fallbackSource || '').trim();
           const pubDate = (it.querySelector('pubDate')?.textContent || '').trim();
+          const rawDesc = (it.querySelector('description')?.textContent || '').trim();
+          const desc = rawDesc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
           const ts = Date.parse(pubDate || '') || 0;
-          return { title, link, source, pubDate, ts };
+          return { title, link, source, pubDate, ts, desc };
         }).filter(x => x.title && x.link);
         return items;
       }
@@ -182,24 +212,21 @@
 
 
       function parseProxyText(txt) {
-        const lines = String(txt || '').split('
-').map(l => l.trim()).filter(Boolean);
+        const lines = String(txt || '').split('\n').map(l => l.trim()).filter(Boolean);
         const titleLine = lines.find(l => l.startsWith('Title: ')) || '';
         const title = titleLine.replace(/^Title:\s*/, '').trim();
         const bodyStart = lines.findIndex(l => l.startsWith('Markdown Content:'));
         const bodyLines = bodyStart >= 0 ? lines.slice(bodyStart + 1) : lines;
         const paragraphs = bodyLines
-          .join('
-')
-          .split(/
-{2,}/)
-          .map(p => p.replace(/^#+\s*/,'').trim())
+          .join('\n')
+          .split(/\n{2,}/)
+          .map(p => p.replace(/^#+\s*/, '').trim())
           .filter(p => p.length > 80)
           .slice(0, 80);
         return { title, paragraphs };
       }
 
-      async function openArticle(url, fallbackTitle='') {
+      async function openArticle(url, fallbackTitle='', fallbackSnippet='') {
         currentArticleUrl = url;
         readerEl.classList.add('open');
         readerTitleEl.textContent = 'טוען כתבה...';
@@ -207,24 +234,46 @@
         readerBodyEl.innerHTML = '<div class="meta">מחלץ תוכן נקי ללא פרסומות...</div>';
         try {
           let parsed = { title: '', paragraphs: [] };
-          const proxyTxt = await fetchViaReaderProxy(url);
-          if (proxyTxt) parsed = parseProxyText(proxyTxt);
 
+          const backend = getBackendBase();
+          if (backend) {
+            const ex = await fetchJson(apiUrl(`/api/extract?url=${encodeURIComponent(url)}`));
+            if (ex?.ok && ex?.article?.paragraphs?.length) {
+              parsed = { title: ex.article.title || '', paragraphs: ex.article.paragraphs || [] };
+            }
+          }
           if (!parsed.paragraphs.length) {
-            const html = await fetchRaw(url);
-            parsed = extractReadable(html);
+            const proxyTxt = await fetchViaReaderProxy(url);
+          if (proxyTxt && !/SecurityCompromiseError|access to domain .* blocked|DDoS attack suspected/i.test(proxyTxt)) {
+            parsed = parseProxyText(proxyTxt);
+          }
+
+            if (!parsed.paragraphs.length) {
+              const html = await fetchRaw(url);
+              parsed = extractReadable(html);
+            }
           }
 
           readerTitleEl.textContent = parsed.title || fallbackTitle || 'כתבה';
           readerMetaEl.textContent = parsed.paragraphs.length ? `נטענו ${parsed.paragraphs.length} פסקאות` : 'לא אותר תוכן מלא. אפשר לפתוח מקור.';
+          if (!parsed.paragraphs.length && fallbackSnippet) {
+            parsed.paragraphs = [fallbackSnippet];
+            readerMetaEl.textContent = 'מוצג תקציר מהפיד. לחילוץ כתבה מלאה צריך Backend.';
+          }
+
           if (!parsed.paragraphs.length) {
-            readerBodyEl.innerHTML = '<div class="warn">לא הצלחתי לחלץ תוכן מלא מהכתבה הזו.</div>';
+            readerBodyEl.innerHTML = '<div class="warn">האתר חוסם חילוץ תוכן מלא כרגע. מציגים תקציר מהפיד.</div>';
           } else {
             readerBodyEl.innerHTML = parsed.paragraphs.map(p => `<p class="reader-p">${escapeHtml(p)}</p>`).join('');
           }
         } catch (e) {
           readerTitleEl.textContent = fallbackTitle || 'שגיאה בטעינת כתבה';
-          readerBodyEl.innerHTML = `<div class="warn">שגיאה בחילוץ כתבה: ${String(e.message || e)}</div>`;
+          if (fallbackSnippet) {
+            readerBodyEl.innerHTML = `<p class="reader-p">${escapeHtml(fallbackSnippet)}</p>`;
+            readerMetaEl.textContent = 'מוצג תקציר מהפיד (המקור חסם חילוץ מלא)';
+          } else {
+            readerBodyEl.innerHTML = `<div class="warn">לא ניתן לחלץ תוכן כרגע.</div>`;
+          }
         }
       }
 
@@ -261,10 +310,12 @@
         }
 
         const frag = document.createDocumentFragment();
+        articleMap.clear();
         for (const n of rows) {
           const div = document.createElement('div');
           div.className = 'card';
           const when = n.ts ? new Date(n.ts).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : (n.pubDate || '');
+          articleMap.set(n.link, n);
           div.innerHTML = `
             <div class="title open-article" data-url="${n.link.replace(/"/g, "&quot;")}" data-title="${escapeHtml(n.title)}" style="cursor:pointer;">${escapeHtml(n.title)}</div>
             <div class="row">
@@ -275,8 +326,8 @@
           frag.appendChild(div);
         }
         gridEl.appendChild(frag);
-        statusEl.textContent = `נטענו ${rows.length} כותרות`;
-        if (!rows.length) statusEl.textContent = 'אין כותרות כרגע מהמקורות שנבחרו';
+        statusEl.textContent = `נטענו ${rows.length} כותרות (${okFeeds}/${feeds.length} מקורות)`;
+        if (!rows.length) statusEl.textContent = `אין כותרות כרגע (${okFeeds}/${feeds.length} מקורות הצליחו)`;
         requestAnimationFrame(() => { gridEl.style.minHeight = ''; });
       }
 
@@ -295,9 +346,17 @@
         const a = e.target.closest('.open-article');
         if (!a) return;
         e.preventDefault();
-        openArticle(a.getAttribute('data-url') || '', a.getAttribute('data-title') || a.textContent || '');
+        const u = a.getAttribute('data-url') || '';
+        const item = articleMap.get(u);
+        openArticle(u, a.getAttribute('data-title') || a.textContent || '', item?.desc || '');
       });
       document.getElementById('closeReader').addEventListener('click', () => readerEl.classList.remove('open'));
+      const backendInput = document.getElementById('backendUrl');
+      backendInput.value = getBackendBase();
+      document.getElementById('saveBackendBtn').addEventListener('click', () => {
+        setBackendBase(backendInput.value || '');
+        statusEl.textContent = getBackendBase() ? 'Backend נשמר לחילוץ כתבות מלאות' : 'Backend הוסר';
+      });
 
       loadNews();
       setInterval(() => loadNews(false), 5 * 60 * 1000);
