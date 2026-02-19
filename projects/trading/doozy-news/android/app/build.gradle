@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.uziel.mag7dashboard"
+        applicationId "com.doozy.pulse"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

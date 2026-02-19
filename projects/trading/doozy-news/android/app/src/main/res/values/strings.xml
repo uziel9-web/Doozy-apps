@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Doozy News</string>
-    <string name="title_activity_main">Doozy News</string>
-    <string name="package_name">com.doozy.news</string>
-    <string name="custom_url_scheme">com.doozy.news</string>
+    <string name="app_name">Doozy Pulse</string>
+    <string name="title_activity_main">Doozy Pulse</string>
+    <string name="package_name">com.doozy.pulse</string>
+    <string name="custom_url_scheme">com.doozy.pulse</string>
 </resources>
