@@ -29,6 +29,7 @@
       .reader-title { font-size:24px; font-weight:700; margin-bottom:8px; }
       .reader-actions { display:flex; gap:8px; margin-bottom:10px; }
       .reader-p { color:#dfe5ff; line-height:1.7; margin:0 0 10px; }
+      .dev-only { display:none; }
     </style>
   </head>
   <body>
@@ -45,7 +46,7 @@
           </select>
           <button id="refreshBtn" class="refresh-btn">רענן חדשות</button>
         </div>
-        <div class="controls-grid">
+        <div id="backendDev" class="controls-grid dev-only">
           <input id="backendUrl" class="mini-select" placeholder="Backend URL לחילוץ כתבות מלאות" style="text-align:left;direction:ltr;" />
           <button id="saveBackendBtn" class="refresh-btn">שמור Backend</button>
         </div>
@@ -68,7 +69,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 02:05</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 02:20</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -80,11 +81,12 @@
       let currentArticleUrl = '';
       const articleMap = new Map();
       const LS_BACKEND = 'doozy_news_backend_v1';
+      const DEFAULT_BACKEND = 'https://beige-hotels-pull.loca.lt';
 
 
 
       function getBackendBase() {
-        return (localStorage.getItem(LS_BACKEND) || '').trim().replace(/\/$/, '');
+        return (localStorage.getItem(LS_BACKEND) || DEFAULT_BACKEND || '').trim().replace(/\/$/, '');
       }
       function setBackendBase(v) {
         const clean = String(v || '').trim().replace(/\/$/, '');
@@ -351,9 +353,13 @@
         openArticle(u, a.getAttribute('data-title') || a.textContent || '', item?.desc || '');
       });
       document.getElementById('closeReader').addEventListener('click', () => readerEl.classList.remove('open'));
+      const devMode = new URLSearchParams(location.search).get('dev') === '1';
+      const backendDev = document.getElementById('backendDev');
       const backendInput = document.getElementById('backendUrl');
-      backendInput.value = getBackendBase();
-      document.getElementById('saveBackendBtn').addEventListener('click', () => {
+      const saveBackendBtn = document.getElementById('saveBackendBtn');
+      if (devMode && backendDev) backendDev.style.display = 'grid';
+      if (backendInput) backendInput.value = getBackendBase();
+      if (saveBackendBtn) saveBackendBtn.addEventListener('click', () => {
         setBackendBase(backendInput.value || '');
         statusEl.textContent = getBackendBase() ? 'Backend נשמר לחילוץ כתבות מלאות' : 'Backend הוסר';
       });
