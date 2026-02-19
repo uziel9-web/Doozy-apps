@@ -68,6 +68,42 @@ app.get('/api/ad-rules', (_req, res) => {
   res.json({ ok: true, rules: AD_RULES, updatedAt: Date.now() });
 });
 
+
+app.get('/api/webview', async (req, res) => {
+  const url = String(req.query.url || '').trim();
+  if (!url) return res.status(400).send('url_required');
+  try {
+    const r = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
+        'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8'
+      }
+    });
+    let html = await r.text();
+
+    const dom = new JSDOM(html, { url });
+    const doc = dom.window.document;
+
+    [...doc.querySelectorAll('script,noscript,iframe')].forEach(el => el.remove());
+    for (const sel of AD_RULES.hideSelectors) {
+      try { doc.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
+    }
+
+    const base = doc.querySelector('base') || doc.createElement('base');
+    base.setAttribute('href', url);
+    if (!base.parentNode) doc.head.prepend(base);
+
+    const style = doc.createElement('style');
+    style.textContent = `${AD_RULES.hideSelectors.join(',')} { display:none !important; } body{max-width:900px;margin:0 auto;padding:12px;line-height:1.6;} img,video{max-width:100%;height:auto;} `;
+    doc.head.appendChild(style);
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(dom.serialize());
+  } catch (e) {
+    return res.status(500).send(`<html><body style="font-family:Arial;padding:16px;background:#111;color:#fff;">Failed to load article: ${String(e?.message||e)}</body></html>`);
+  }
+});
+
 app.get('/api/extract', async (req, res) => {
   const url = String(req.query.url || '').trim();
   if (!url) return res.status(400).json({ ok: false, error: 'url_required' });

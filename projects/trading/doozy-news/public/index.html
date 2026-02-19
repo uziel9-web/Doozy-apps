@@ -29,6 +29,7 @@
       .reader-title { font-size:24px; font-weight:700; margin-bottom:8px; }
       .reader-actions { display:flex; gap:8px; margin-bottom:10px; }
       .reader-p { color:#dfe5ff; line-height:1.7; margin:0 0 10px; }
+      .webview-frame { width:100%; height:70vh; border:0; background:#fff; border-radius:8px; }
       .dev-only { display:none; }
     </style>
   </head>
@@ -69,7 +70,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 02:45</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 03:05</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -248,52 +249,10 @@
       async function openArticle(url, fallbackTitle='', fallbackSnippet='') {
         currentArticleUrl = url;
         readerEl.classList.add('open');
-        readerTitleEl.textContent = 'טוען כתבה...';
-        readerMetaEl.textContent = '';
-        readerBodyEl.innerHTML = '<div class="meta">מחלץ תוכן נקי ללא פרסומות...</div>';
-        try {
-          let parsed = { title: '', paragraphs: [] };
-
-          const backend = getBackendBase();
-          if (backend) {
-            const ex = await fetchJson(apiUrl(`/api/extract?url=${encodeURIComponent(url)}`));
-            if (ex?.ok && ex?.article?.paragraphs?.length) {
-              parsed = { title: ex.article.title || '', paragraphs: ex.article.paragraphs || [] };
-            }
-          }
-          if (!parsed.paragraphs.length) {
-            const proxyTxt = await fetchViaReaderProxy(url);
-          if (proxyTxt && !/SecurityCompromiseError|access to domain .* blocked|DDoS attack suspected/i.test(proxyTxt)) {
-            parsed = parseProxyText(proxyTxt);
-          }
-
-            if (!parsed.paragraphs.length) {
-              const html = await fetchRaw(url);
-              parsed = extractReadable(html);
-            }
-          }
-
-          readerTitleEl.textContent = parsed.title || fallbackTitle || 'כתבה';
-          readerMetaEl.textContent = parsed.paragraphs.length ? `נטענו ${parsed.paragraphs.length} פסקאות` : 'לא אותר תוכן מלא. אפשר לפתוח מקור.';
-          if (!parsed.paragraphs.length && fallbackSnippet) {
-            parsed.paragraphs = [fallbackSnippet];
-            readerMetaEl.textContent = 'מוצג תקציר מהפיד. לחילוץ כתבה מלאה צריך Backend.';
-          }
-
-          if (!parsed.paragraphs.length) {
-            readerBodyEl.innerHTML = '<div class="warn">האתר חוסם חילוץ תוכן מלא כרגע. מציגים תקציר מהפיד.</div>';
-          } else {
-            readerBodyEl.innerHTML = parsed.paragraphs.map(p => `<p class="reader-p">${escapeHtml(p)}</p>`).join('');
-          }
-        } catch (e) {
-          readerTitleEl.textContent = fallbackTitle || 'שגיאה בטעינת כתבה';
-          if (fallbackSnippet) {
-            readerBodyEl.innerHTML = `<p class="reader-p">${escapeHtml(fallbackSnippet)}</p>`;
-            readerMetaEl.textContent = 'מוצג תקציר מהפיד (המקור חסם חילוץ מלא)';
-          } else {
-            readerBodyEl.innerHTML = `<div class="warn">לא ניתן לחלץ תוכן כרגע.</div>`;
-          }
-        }
+        readerTitleEl.textContent = fallbackTitle || 'טוען כתבה...';
+        readerMetaEl.textContent = 'מצב WebView פנימי עם ניקוי פרסומות…';
+        const src = apiUrl(`/api/webview?url=${encodeURIComponent(url)}`);
+        readerBodyEl.innerHTML = `<iframe id="articleFrame" class="webview-frame" src="${src}"></iframe>`;
       }
 
       async function loadNews(force = false) {
@@ -369,7 +328,7 @@
         const item = articleMap.get(u);
         openArticle(u, a.getAttribute('data-title') || a.textContent || '', item?.desc || '');
       });
-      document.getElementById('closeReader').addEventListener('click', () => readerEl.classList.remove('open'));
+      document.getElementById('closeReader').addEventListener('click', () => { const f=document.getElementById('articleFrame'); if (f) f.src='about:blank'; readerEl.classList.remove('open'); });
       const devMode = new URLSearchParams(location.search).get('dev') === '1';
       const backendDev = document.getElementById('backendDev');
       const backendInput = document.getElementById('backendUrl');
