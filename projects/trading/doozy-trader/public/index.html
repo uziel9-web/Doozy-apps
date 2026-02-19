@@ -34,12 +34,12 @@
 <body>
   <div class="wrap">
     <h1>Doozy Trader</h1>
-    <div class="sub">אפליקציית מסחר ייעודית בעיצוב MAG-7 · מצב נוכחי: Paper-only</div>
-    <div class="source">IBKR Gateway (Paper 7497) · Scanner & Suggestions בשלבי חיבור</div>
+    <div class="sub">אפליקציית מסחר ייעודית · Schwab API בלבד · Paper-first</div>
+    <div class="source">Schwab backend + scanner suggestions · Live mode עדיין כבוי</div>
 
     <div class="topline">
-      <div id="ibkrStatus" class="market-pill">בודק חיבור...</div>
-      <div class="market-pill">Live Trading כבוי כברירת מחדל</div>
+      <div id="brokerStatus" class="market-pill">בודק חיבור...</div>
+      <div class="market-pill">Broker: Schwab only</div>
     </div>
 
     <div class="card">
@@ -52,12 +52,16 @@
         <button id="saveApiKey">Save API Key</button>
       </div>
       <div class="row" style="margin-top:8px;">
+        <input id="schwabToken" class="wide" placeholder="Schwab Access Token (temporary bootstrap)" />
+        <button id="saveSchwabToken">Save Schwab Token</button>
+      </div>
+      <div class="row" style="margin-top:8px;">
         <button id="refresh">רענן מצב</button>
         <input id="symbols" value="AAPL,MSFT,NVDA" style="min-width:240px" />
         <button id="loadQuotes">טען Quotes</button>
       </div>
       <div id="backendHint" class="meta" style="margin-top:8px;">Backend not set.</div>
-      <div class="meta" style="margin-top:4px;">Note: delayed/live depends on your IBKR market data entitlements.</div>
+      <div class="meta" style="margin-top:4px;">OAuth מלא לשוואב בדרך. כרגע אפשר להזין Access Token זמני לצורך פיתוח.</div>
     </div>
 
     <div id="quotes" class="grid"></div>
@@ -129,10 +133,10 @@
     }
 
     async function refreshStatus() {
-      const el = document.getElementById('ibkrStatus');
+      const el = document.getElementById('brokerStatus');
       try {
-        const j = await fetchJsonSafe(apiUrl('/api/ibkr/status'));
-        el.textContent = j.connected ? 'IBKR connected ✅ (Paper)' : (j.message || 'Not connected');
+        const j = await fetchJsonSafe(apiUrl('/api/broker/status'));
+        el.textContent = j.connected ? 'Schwab connected ✅' : (j.message || 'Not connected');
         el.style.color = j.connected ? '#77e4aa' : '#ffd27f';
       } catch {
         el.textContent = 'No backend connection (APK is standalone).';
@@ -144,26 +148,28 @@
       const box = document.getElementById('quotes');
       box.innerHTML = '<div class="card muted">טוען...</div>';
       try {
-        const j = await fetchJsonSafe(apiUrl(`/api/ibkr/quotes?symbols=${encodeURIComponent(symbols)}`));
+        const j = await fetchJsonSafe(apiUrl(`/api/schwab/quotes?symbols=${encodeURIComponent(symbols)}`));
         if (!j.ok) throw new Error(j.error || 'quote_error');
         box.innerHTML = '';
         for (const q of (j.quotes || [])) {
+          const up = Number(q.change || 0) >= 0;
+          const sign = up ? '+' : '-';
           const div = document.createElement('div');
           div.className = 'quote-item';
           div.innerHTML = `
             <div>
               <div class="sym">${q.symbol}</div>
-              <div class="meta">bid ${fmt(q.bid)} · ask ${fmt(q.ask)} · close ${fmt(q.close)}</div>
+              <div class="meta">${q.name || q.symbol}</div>
             </div>
             <div style="text-align:left;">
-              <div class="price">${fmt(q.last || q.marketPrice)}</div>
-              <div class="meta">${q.delayed ? 'Delayed' : 'Realtime'}</div>
+              <div class="price">${fmt(q.price)}</div>
+              <div class="meta" style="color:${up ? '#77e4aa' : '#ff8f8f'}">${sign}${fmt(Math.abs(Number(q.change || 0)))} (${sign}${Math.abs(Number(q.changePct || 0)).toFixed(2)}%)</div>
             </div>
           `;
           box.appendChild(div);
         }
       } catch (e) {
-        box.innerHTML = `<div class="card warn">Quotes error: ${e.message}<br><span class="meta">Tip: APK needs a reachable backend URL for IBKR endpoints.</span></div>`;
+        box.innerHTML = `<div class="card warn">Quotes error: ${e.message}<br><span class="meta">Tip: set backend + Schwab token first.</span></div>`;
       }
     }
 
@@ -192,7 +198,7 @@
           box.appendChild(div);
         }
       } catch (e) {
-        box.innerHTML = `<div class="card warn">Scanner error: ${e.message}<br><span class="meta">Tip: scanner runs on backend; APK alone cannot call local /api.</span></div>`;
+        box.innerHTML = `<div class="card warn">Scanner error: ${e.message}<br><span class="meta">Tip: scanner runs on backend with Schwab quotes.</span></div>`;
       }
     }
 
@@ -210,6 +216,22 @@
       else localStorage.removeItem(LS_API_KEY);
       refreshBackendHint();
       refreshStatus();
+    });
+
+    document.getElementById('saveSchwabToken').addEventListener('click', async () => {
+      const token = (document.getElementById('schwabToken').value || '').trim();
+      if (!token) return;
+      try {
+        const j = await fetchJsonSafe(apiUrl('/api/schwab/token'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken: token })
+        });
+        if (!j.ok) throw new Error(j.error || 'token_save_failed');
+        await refreshStatus();
+      } catch (e) {
+        alert(`Token save failed: ${e.message}`);
+      }
     });
 
     document.getElementById('refresh').addEventListener('click', refreshStatus);
