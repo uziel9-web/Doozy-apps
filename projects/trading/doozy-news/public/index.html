@@ -29,7 +29,7 @@
       .reader-title { font-size:24px; font-weight:700; margin-bottom:8px; }
       .reader-actions { display:flex; gap:8px; margin-bottom:10px; }
       .reader-p { color:#dfe5ff; line-height:1.7; margin:0 0 10px; }
-      .webview-frame { width:100%; height:70vh; border:0; background:#fff; border-radius:8px; }
+      .webview-content { width:100%; min-height:70vh; border:0; background:#fff; border-radius:8px; color:#111; padding:10px; box-sizing:border-box; overflow:auto; }
       .dev-only { display:none; }
     </style>
   </head>
@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 03:05</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 04:00</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -250,9 +250,15 @@
         currentArticleUrl = url;
         readerEl.classList.add('open');
         readerTitleEl.textContent = fallbackTitle || 'טוען כתבה...';
-        readerMetaEl.textContent = 'מצב WebView פנימי עם ניקוי פרסומות…';
-        const src = apiUrl(`/api/webview?url=${encodeURIComponent(url)}`);
-        readerBodyEl.innerHTML = `<iframe id="articleFrame" class="webview-frame" src="${src}"></iframe>`;
+        readerMetaEl.textContent = 'טוען כתבה מלאה...';
+        readerBodyEl.innerHTML = `<div class="webview-content">טוען...</div>`;
+        try {
+          const html = await fetchRaw(apiUrl(`/api/webview?url=${encodeURIComponent(url)}`));
+          readerBodyEl.innerHTML = `<div class="webview-content">${html}</div>`;
+          readerMetaEl.textContent = 'מצב קריאה פנימי (ניקוי פרסומות)';
+        } catch (e) {
+          readerBodyEl.innerHTML = `<div class="warn">שגיאה בטעינת כתבה מלאה. ${escapeHtml(String(e?.message || e))}</div>`;
+        }
       }
 
       async function loadNews(force = false) {
@@ -328,7 +334,7 @@
         const item = articleMap.get(u);
         openArticle(u, a.getAttribute('data-title') || a.textContent || '', item?.desc || '');
       });
-      document.getElementById('closeReader').addEventListener('click', () => { const f=document.getElementById('articleFrame'); if (f) f.src='about:blank'; readerEl.classList.remove('open'); });
+      document.getElementById('closeReader').addEventListener('click', () => { readerEl.classList.remove('open'); });
       const devMode = new URLSearchParams(location.search).get('dev') === '1';
       const backendDev = document.getElementById('backendDev');
       const backendInput = document.getElementById('backendUrl');
