@@ -1,0 +1,16 @@
+{
+  "name": "app-portal",
+  "version": "1.0.0",
+  "description": "- `public/index.html` — public portal (only latest APK) - `public/admin/index.html` — dev/admin versions page - `public/apps/mag7/latest.apk` — file used by normal users - `public/apps/mag7/archive/*` — old builds",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "wrangler": "^4.66.0"
+  }
+}
