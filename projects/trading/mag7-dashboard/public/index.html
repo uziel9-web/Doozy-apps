@@ -9,15 +9,23 @@
       .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
       h1 { margin: 0 0 6px; }
       .sub { color: #a9b4e7; margin-bottom: 16px; }
-      .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); }
-      .card { background: #141b34; border: 1px solid #283157; border-radius: 12px; padding: 12px; }
-      .sym { font-weight: 700; font-size: 18px; }
-      .name { color: #a9b4e7; font-size: 12px; min-height: 32px; }
-      .price { font-size: 28px; margin-top: 8px; }
+      .grid { display: grid; gap: 10px; grid-template-columns: 1fr; }
+      .card { background: #141b34; border: 1px solid #283157; border-radius: 10px; padding: 10px 12px; display:flex; align-items:center; justify-content:space-between; }
+      .left { display:flex; flex-direction:column; gap:2px; }
+      .sym { font-weight: 700; font-size: 20px; line-height:1; }
+      .name { color: #a9b4e7; font-size: 11px; }
+      .price { font-size: 30px; margin-top: 0; line-height:1; text-align:left; }
       .up { color: #40d38a; }
       .down { color: #ff6b81; }
-      .news { margin-top: 18px; background: #141b34; border: 1px solid #283157; border-radius: 12px; padding: 14px; }
-      .news h2 { margin: 0 0 10px; font-size: 20px; }
+      .chg { font-size: 13px; text-align:left; }
+      .source { color:#8f9bd0; font-size:12px; margin-bottom:8px; }
+      .toolbar { display:flex; gap:8px; margin: 10px 0 12px; }
+      .toolbar input { flex:1; background:#0f1630; border:1px solid #283157; color:#e8ecff; border-radius:8px; padding:10px; font-size:14px; }
+      .toolbar button { background:#26346a; border:1px solid #3a4a8e; color:#fff; border-radius:8px; padding:10px 12px; font-weight:700; }
+      .actions { display:flex; align-items:center; gap:6px; margin-right:8px; }
+      .icon-btn { border:0; background:transparent; color:#9fb0f0; font-size:18px; }
+      .news { margin-top: 18px; background: #141b34; border: 1px solid #283157; border-radius: 12px; padding: 14px; direction:ltr; text-align:left; }
+      .news h2 { margin: 0 0 10px; font-size: 20px; direction:rtl; text-align:right; }
       .news a { color: #dbe2ff; text-decoration: none; }
       .news a:hover { text-decoration: underline; }
       .news li { margin-bottom: 10px; }
@@ -28,6 +36,12 @@
     <div class="wrap">
       <h1>MAG-7 Dashboard</h1>
       <div class="sub">מחירי מניות + חדשות כלכליות במסך אחד</div>
+      <div id="status" class="sub" style="color:#ffb4b4"></div>
+      <div class="source">מקור נתונים: Stooq (עיכוב קל אפשרי). שינוי מחושב מול הסגירה הקודמת.</div>
+      <div class="toolbar">
+        <input id="symbolInput" placeholder="הוסף סימבול (למשל NFLX)" />
+        <button id="addBtn">הוסף</button>
+      </div>
       <div id="quotes" class="grid"></div>
       <div class="news">
         <h2>חדשות שוק (טק / AI)</h2>
@@ -37,34 +51,90 @@
 
     <script>
       const money = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const statusEl = document.getElementById('status');
+      const DEFAULT_LIST = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOG', 'META', 'TSLA'];
+      const LS_KEY = 'mag7_watchlist_v1';
+
+      function getWatchlist() {
+        try {
+          const raw = localStorage.getItem(LS_KEY);
+          const arr = raw ? JSON.parse(raw) : DEFAULT_LIST;
+          return Array.isArray(arr) && arr.length ? arr : DEFAULT_LIST;
+        } catch {
+          return DEFAULT_LIST;
+        }
+      }
+      function setWatchlist(list) {
+        localStorage.setItem(LS_KEY, JSON.stringify(list));
+      }
+
+      async function httpText(url) {
+        const capHttp = window.CapacitorHttp || window.Capacitor?.Plugins?.CapacitorHttp;
+        const isNative = !!window.Capacitor?.isNativePlatform?.();
+        if (isNative && capHttp?.get) {
+          const r = await capHttp.get({ url });
+          return typeof r.data === 'string' ? r.data : JSON.stringify(r.data);
+        }
+        const r = await fetch(url);
+        return await r.text();
+      }
 
       async function loadQuotes() {
-        const res = await fetch('/api/quotes');
-        const data = await res.json();
+        const watchlist = getWatchlist();
+        const rows = await Promise.all(
+          watchlist.map(async (sym) => {
+            const raw = await httpText(`https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&i=d`);
+            const lines = raw.trim().split('\n');
+            const last = lines[lines.length - 1]?.split(',') || [];
+            const prev = lines[lines.length - 2]?.split(',') || [];
+            const close = Number(last[4] || 0);
+            const prevClose = Number(prev[4] || close || 0);
+            const change = close - prevClose;
+            const changePct = prevClose ? (change / prevClose) * 100 : 0;
+            return { symbol: sym, name: sym, price: close, change, changePct };
+          })
+        );
+
         const box = document.getElementById('quotes');
         box.innerHTML = '';
-        for (const q of data.results || []) {
+        for (const q of rows) {
           const isUp = (q.change || 0) >= 0;
           const cls = isUp ? 'up' : 'down';
           const sign = isUp ? '+' : '';
           const div = document.createElement('div');
           div.className = 'card';
           div.innerHTML = `
-            <div class="sym">${q.symbol}</div>
-            <div class="name">${q.name || ''}</div>
-            <div class="price">${money.format(q.price || 0)}</div>
-            <div class="${cls}">${sign}${money.format(q.change || 0)} (${sign}${(q.changePct || 0).toFixed(2)}%)</div>
+            <div class="left">
+              <div class="sym">${q.symbol}</div>
+              <div class="name">${q.name || ''}</div>
+            </div>
+            <div>
+              <div class="price">${money.format(q.price || 0)}</div>
+              <div class="chg ${cls}">${sign}${money.format(q.change || 0)} (${sign}${(q.changePct || 0).toFixed(2)}%)</div>
+            </div>
+            <div class="actions">
+              <button class="icon-btn up-btn" data-symbol="${q.symbol}" title="העבר למעלה">↑</button>
+              <button class="icon-btn down-btn" data-symbol="${q.symbol}" title="העבר למטה">↓</button>
+              <button class="icon-btn remove-btn" data-symbol="${q.symbol}" title="הסר">✕</button>
+            </div>
           `;
           box.appendChild(div);
         }
       }
 
       async function loadNews() {
-        const res = await fetch('/api/news');
-        const data = await res.json();
+        const xml = await httpText('https://news.google.com/rss/search?q=US%20stock%20market%20technology%20AI&hl=en-US&gl=US&ceid=US:en');
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        const items = [...doc.querySelectorAll('item')].slice(0, 12).map((it) => ({
+          title: it.querySelector('title')?.textContent || '',
+          link: it.querySelector('link')?.textContent || '',
+          pubDate: it.querySelector('pubDate')?.textContent || '',
+          source: it.querySelector('source')?.textContent || ''
+        }));
+
         const list = document.getElementById('news');
         list.innerHTML = '';
-        for (const n of (data.results || []).slice(0, 12)) {
+        for (const n of items) {
           const li = document.createElement('li');
           li.innerHTML = `<a href="${n.link}" target="_blank" rel="noopener">${n.title}</a><div class="meta">${n.source || ''} · ${n.pubDate || ''}</div>`;
           list.appendChild(li);
@@ -72,8 +142,69 @@
       }
 
       async function refreshAll() {
-        await Promise.allSettled([loadQuotes(), loadNews()]);
+        const [q, n] = await Promise.allSettled([loadQuotes(), loadNews()]);
+        if (q.status === 'rejected' || n.status === 'rejected') {
+          statusEl.textContent = 'אין חיבור לאינטרנט או שספק הנתונים חסום זמנית. נסה שוב בעוד דקה.';
+        } else {
+          statusEl.textContent = '';
+        }
       }
+
+      async function addSymbol() {
+        const input = document.getElementById('symbolInput');
+        const sym = (input.value || '').trim().toUpperCase();
+        if (!sym) return;
+        const list = getWatchlist();
+        if (!list.includes(sym)) {
+          list.push(sym);
+          setWatchlist(list);
+          await loadQuotes();
+        }
+        input.value = '';
+      }
+      document.getElementById('addBtn').addEventListener('click', addSymbol);
+      document.getElementById('symbolInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addSymbol();
+      });
+
+      document.getElementById('quotes').addEventListener('click', async (e) => {
+        const remove = e.target.closest('.remove-btn');
+        const up = e.target.closest('.up-btn');
+        const down = e.target.closest('.down-btn');
+
+        if (remove) {
+          const sym = remove.getAttribute('data-symbol');
+          const list = getWatchlist().filter((s) => s !== sym);
+          if (list.length) {
+            setWatchlist(list);
+            await loadQuotes();
+          }
+          return;
+        }
+
+        if (up) {
+          const sym = up.getAttribute('data-symbol');
+          const list = getWatchlist();
+          const i = list.indexOf(sym);
+          if (i > 0) {
+            [list[i - 1], list[i]] = [list[i], list[i - 1]];
+            setWatchlist(list);
+            await loadQuotes();
+          }
+          return;
+        }
+
+        if (down) {
+          const sym = down.getAttribute('data-symbol');
+          const list = getWatchlist();
+          const i = list.indexOf(sym);
+          if (i >= 0 && i < list.length - 1) {
+            [list[i + 1], list[i]] = [list[i], list[i + 1]];
+            setWatchlist(list);
+            await loadQuotes();
+          }
+        }
+      });
 
       refreshAll();
       setInterval(loadQuotes, 60000);

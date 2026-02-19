@@ -3,6 +3,23 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.uziel.mag7dashboard"
     compileSdk = rootProject.ext.compileSdkVersion
+
+    def ksPath = System.getenv("MAG7_KEYSTORE_PATH")
+    def ksPass = System.getenv("MAG7_KEYSTORE_PASSWORD")
+    def keyAliasEnv = System.getenv("MAG7_KEY_ALIAS")
+    def keyPass = System.getenv("MAG7_KEY_PASSWORD")
+
+    signingConfigs {
+        release {
+            if (ksPath && ksPass && keyAliasEnv && keyPass) {
+                storeFile file(ksPath)
+                storePassword ksPass
+                keyAlias keyAliasEnv
+                keyPassword keyPass
+            }
+        }
+    }
+
     defaultConfig {
         applicationId "com.uziel.mag7dashboard"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -18,6 +35,9 @@ android {
     }
     buildTypes {
         release {
+            if (ksPath && ksPass && keyAliasEnv && keyPass) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
