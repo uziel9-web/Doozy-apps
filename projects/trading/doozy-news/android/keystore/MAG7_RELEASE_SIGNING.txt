@@ -1,0 +1,4 @@
+MAG7_KEYSTORE_PATH=/Users/uziel/.openclaw/workspace/projects/trading/mag7-dashboard/android/keystore/mag7-upload.jks
+MAG7_KEYSTORE_PASSWORD=t7TC67kWaiZMCaqasIkwPGTG
+MAG7_KEY_ALIAS=mag7upload
+MAG7_KEY_PASSWORD=t7TC67kWaiZMCaqasIkwPGTG
