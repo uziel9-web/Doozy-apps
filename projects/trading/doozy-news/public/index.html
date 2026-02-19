@@ -57,8 +57,7 @@
         <div class="reader-card">
           <div class="reader-actions">
             <button id="closeReader" class="refresh-btn">סגור</button>
-            <button id="openOriginal" class="refresh-btn">פתח מקור</button>
-          </div>
+                      </div>
           <div id="readerTitle" class="reader-title">טוען...</div>
           <div id="readerMeta" class="meta"></div>
           <div id="readerBody"></div>
@@ -66,7 +65,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 00:20</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 00:50</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -76,13 +75,6 @@
       const readerMetaEl = document.getElementById('readerMeta');
       const readerBodyEl = document.getElementById('readerBody');
       let currentArticleUrl = '';
-      let allowExternalOpen = false;
-      const _origOpen = window.open;
-      window.open = function(url, target, features) {
-        if (!allowExternalOpen) return null;
-        allowExternalOpen = false;
-        return _origOpen.call(window, url, target, features);
-      };
 
 
       const SOURCES = {
@@ -156,6 +148,18 @@
         return await r.text();
       }
 
+      async function fetchViaReaderProxy(url) {
+        const clean = String(url || '').trim();
+        if (!clean) return '';
+        const noScheme = clean.replace(/^https?:\/\//i, '');
+        const proxyUrl = `https://r.jina.ai/http://${noScheme}`;
+        try {
+          return await fetchRaw(proxyUrl);
+        } catch {
+          return '';
+        }
+      }
+
       function extractReadable(html) {
         const doc = new DOMParser().parseFromString(html, 'text/html');
         [...doc.querySelectorAll('script,style,noscript,iframe,header,footer,nav,aside,.ad,.ads,.advertisement,[role="banner"]')].forEach(el => el.remove());
@@ -168,6 +172,25 @@
         return { title, paragraphs };
       }
 
+
+      function parseProxyText(txt) {
+        const lines = String(txt || '').split('
+').map(l => l.trim()).filter(Boolean);
+        const titleLine = lines.find(l => l.startsWith('Title: ')) || '';
+        const title = titleLine.replace(/^Title:\s*/, '').trim();
+        const bodyStart = lines.findIndex(l => l.startsWith('Markdown Content:'));
+        const bodyLines = bodyStart >= 0 ? lines.slice(bodyStart + 1) : lines;
+        const paragraphs = bodyLines
+          .join('
+')
+          .split(/
+{2,}/)
+          .map(p => p.replace(/^#+\s*/,'').trim())
+          .filter(p => p.length > 80)
+          .slice(0, 80);
+        return { title, paragraphs };
+      }
+
       async function openArticle(url, fallbackTitle='') {
         currentArticleUrl = url;
         readerEl.classList.add('open');
@@ -175,14 +198,21 @@
         readerMetaEl.textContent = '';
         readerBodyEl.innerHTML = '<div class="meta">מחלץ תוכן נקי ללא פרסומות...</div>';
         try {
-          const html = await fetchRaw(url);
-          const parsed = extractReadable(html);
+          let parsed = { title: '', paragraphs: [] };
+          const proxyTxt = await fetchViaReaderProxy(url);
+          if (proxyTxt) parsed = parseProxyText(proxyTxt);
+
+          if (!parsed.paragraphs.length) {
+            const html = await fetchRaw(url);
+            parsed = extractReadable(html);
+          }
+
           readerTitleEl.textContent = parsed.title || fallbackTitle || 'כתבה';
           readerMetaEl.textContent = parsed.paragraphs.length ? `נטענו ${parsed.paragraphs.length} פסקאות` : 'לא אותר תוכן מלא. אפשר לפתוח מקור.';
           if (!parsed.paragraphs.length) {
             readerBodyEl.innerHTML = '<div class="warn">לא הצלחתי לחלץ תוכן מלא מהכתבה הזו.</div>';
           } else {
-            readerBodyEl.innerHTML = parsed.paragraphs.map(p => `<p class="reader-p">${p.replace(/</g,'&lt;')}</p>`).join('');
+            readerBodyEl.innerHTML = parsed.paragraphs.map(p => `<p class="reader-p">${escapeHtml(p)}</p>`).join('');
           }
         } catch (e) {
           readerTitleEl.textContent = fallbackTitle || 'שגיאה בטעינת כתבה';
@@ -237,6 +267,10 @@
 
       document.getElementById('refreshBtn').addEventListener('click', () => loadNews(true));
       document.getElementById('sourceSelect').addEventListener('change', () => loadNews(true));
+      document.addEventListener('click', (e) => {
+        const a = e.target.closest('a');
+        if (a) { e.preventDefault(); e.stopPropagation(); }
+      }, true);
 
       gridEl.addEventListener('click', (e) => {
         const anyA = e.target.closest('a');
@@ -249,7 +283,6 @@
         openArticle(a.getAttribute('data-url') || '', a.getAttribute('data-title') || a.textContent || '');
       });
       document.getElementById('closeReader').addEventListener('click', () => readerEl.classList.remove('open'));
-      document.getElementById('openOriginal').addEventListener('click', () => { if (currentArticleUrl) { allowExternalOpen = true; window.open(currentArticleUrl, '_blank'); } });
 
       loadNews();
       setInterval(() => loadNews(false), 5 * 60 * 1000);
