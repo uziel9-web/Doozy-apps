@@ -5,10 +5,67 @@ import { Readability } from '@mozilla/readability';
 const app = express();
 const PORT = process.env.PORT || 8787;
 
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 app.use(express.static('public'));
+
+const SOURCES = {
+  all: [
+    { name: 'Google News HE', url: 'https://news.google.com/rss?hl=he&gl=IL&ceid=IL:he' },
+    { name: 'Google Business HE', url: 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=he&gl=IL&ceid=IL:he' },
+    { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
+    { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2' },
+    { name: 'דה מרקר', url: 'https://www.themarker.com/cmlink/1.628' },
+    { name: 'ynet', url: 'https://www.ynet.co.il/Integration/StoryRss2.xml' },
+    { name: 'N12', url: 'https://www.mako.co.il/rss-news?partner=rss' }
+  ],
+  biz: [
+    { name: 'Google Business HE', url: 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=he&gl=IL&ceid=IL:he' },
+    { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
+    { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2' },
+    { name: 'דה מרקר', url: 'https://www.themarker.com/cmlink/1.628' }
+  ],
+  general: [
+    { name: 'Google News HE', url: 'https://news.google.com/rss?hl=he&gl=IL&ceid=IL:he' },
+    { name: 'ynet', url: 'https://www.ynet.co.il/Integration/StoryRss2.xml' },
+    { name: 'N12', url: 'https://www.mako.co.il/rss-news?partner=rss' }
+  ],
+  tech: [
+    { name: 'Google Tech HE', url: 'https://news.google.com/rss/search?q=%D7%98%D7%9B%D7%A0%D7%95%D7%9C%D7%95%D7%92%D7%99%D7%94&hl=he&gl=IL&ceid=IL:he' },
+    { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
+    { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=607' }
+  ]
+};
+
+const AD_RULES = {
+  blockedHosts: [
+    'googlesyndication.com', 'doubleclick.net', 'taboola.com', 'outbrain.com',
+    'criteo.com', 'google-analytics.com', 'googletagmanager.com', 'facebook.net'
+  ],
+  hideSelectors: [
+    '[id*="ad"]', '[class*="ad-"]', '[class*="advert"]', '[class*="banner"]',
+    '[class*="popup"]', '[class*="outbrain"]', '[class*="taboola"]',
+    'iframe[src*="doubleclick"]', 'iframe[src*="googlesyndication"]',
+    '[style*="position: fixed"]', '.paywall', '.newsletter', '.recommended'
+  ]
+};
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'doozy-news-extractor' });
+});
+
+app.get('/api/sources', (_req, res) => {
+  res.json({ ok: true, sources: SOURCES, updatedAt: Date.now() });
+});
+
+app.get('/api/ad-rules', (_req, res) => {
+  res.json({ ok: true, rules: AD_RULES, updatedAt: Date.now() });
 });
 
 app.get('/api/extract', async (req, res) => {
@@ -45,7 +102,9 @@ app.get('/api/extract', async (req, res) => {
         byline: article.byline || '',
         excerpt: article.excerpt || '',
         siteName: article.siteName || '',
-        paragraphs
+        paragraphs,
+        paragraphsCount: paragraphs.length,
+        totalChars: paragraphs.join('\n').length
       }
     });
   } catch (e) {
