@@ -1,8 +1,11 @@
 const express = require('express');
 const path = require('path');
+const net = require('net');
 
 const app = express();
 const PORT = process.env.PORT || 5190;
+const IBKR_HOST = process.env.IBKR_HOST || '127.0.0.1';
+const IBKR_PORT = Number(process.env.IBKR_PORT || 7497);
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -12,12 +15,37 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'doozy-trader', mode: 'paper-only-bootstrap' });
 });
 
-// Future: IBKR bridge status (TWS/Gateway)
-app.get('/api/ibkr/status', (_req, res) => {
+function checkIbkrPort(host = IBKR_HOST, port = IBKR_PORT, timeoutMs = 1200) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let done = false;
+
+    const finish = (connected, error = null) => {
+      if (done) return;
+      done = true;
+      try { socket.destroy(); } catch {}
+      resolve({ connected, error });
+    };
+
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false, 'timeout'));
+    socket.once('error', (err) => finish(false, err?.message || 'socket_error'));
+    socket.connect(port, host);
+  });
+}
+
+app.get('/api/ibkr/status', async (_req, res) => {
+  const state = await checkIbkrPort();
   res.json({
-    ok: false,
-    connected: false,
-    message: 'IBKR bridge not wired yet. Next step: connect to IB Gateway on 127.0.0.1:7497'
+    ok: true,
+    connected: state.connected,
+    host: IBKR_HOST,
+    port: IBKR_PORT,
+    mode: 'paper',
+    message: state.connected
+      ? 'IBKR Gateway port is reachable. Next: wire full protocol for quotes/orders.'
+      : `IBKR not reachable (${state.error || 'unknown'})`
   });
 });
 
