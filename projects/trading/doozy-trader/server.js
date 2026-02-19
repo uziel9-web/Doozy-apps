@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const net = require('net');
+const { execFile } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 5190;
@@ -44,8 +45,26 @@ app.get('/api/ibkr/status', async (_req, res) => {
     port: IBKR_PORT,
     mode: 'paper',
     message: state.connected
-      ? 'IBKR Gateway port is reachable. Next: wire full protocol for quotes/orders.'
+      ? 'IBKR Gateway port is reachable.'
       : `IBKR not reachable (${state.error || 'unknown'})`
+  });
+});
+
+app.get('/api/ibkr/quotes', async (req, res) => {
+  const symbols = String(req.query.symbols || 'AAPL,MSFT').replace(/\s+/g, '');
+  const py = path.join(__dirname, '.venv', 'bin', 'python');
+  const script = path.join(__dirname, 'ibkr_quote.py');
+
+  execFile(py, [script, symbols], { timeout: 15000 }, (err, stdout, stderr) => {
+    if (err) {
+      return res.status(500).json({ ok: false, error: err.message, stderr });
+    }
+    try {
+      const data = JSON.parse(stdout.trim());
+      return res.json(data);
+    } catch {
+      return res.status(500).json({ ok: false, error: 'invalid_quote_payload', raw: stdout, stderr });
+    }
   });
 });
 
