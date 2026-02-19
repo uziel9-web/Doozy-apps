@@ -46,6 +46,10 @@
       .actions { display:flex; align-items:center; gap:6px; margin-right:8px; }
       .drag-handle { color:#9fb0f0; font-size:20px; opacity:.85; }
       .hint { color:#8ea0dd; font-size:11px; margin-top:4px; }
+      .kpi-bar { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin:8px 0 10px; }
+      .kpi { background:#111a3a; border:1px solid #2b386e; border-radius:8px; padding:6px; text-align:center; }
+      .kpi .label { color:#9eb0ea; font-size:10px; }
+      .kpi .value { color:#e8ecff; font-size:13px; font-weight:700; }
       .news { margin-top: 18px; background: #141b34; border: 1px solid #283157; border-radius: 12px; padding: 14px; direction:ltr; text-align:left; width: 100%; box-sizing: border-box; }
       .news-head { display:flex; flex-direction:column; align-items:stretch; gap:8px; margin-bottom:10px; }
       .news-head .controls { display:flex; gap:6px; align-items:center; justify-content:center; flex-wrap:wrap; width:100%; }
@@ -100,6 +104,12 @@
         </div>
       </div>
       <div class="hint">לחיצה ארוכה וגרירה לשינוי סדר · החלקה הצידה על כרטיס למחיקה · ⭐ להצמדה למעלה · 🔔 התראת מחיר</div>
+      <div id="kpiBar" class="kpi-bar">
+        <div class="kpi"><div class="label">עולות</div><div id="kpiUp" class="value">—</div></div>
+        <div class="kpi"><div class="label">יורדות</div><div id="kpiDown" class="value">—</div></div>
+        <div class="kpi"><div class="label">חזקה</div><div id="kpiTop" class="value">—</div></div>
+        <div class="kpi"><div class="label">חלשה</div><div id="kpiWeak" class="value">—</div></div>
+      </div>
       <div class="toolbar">
         <input id="symbolInput" placeholder="הוסף סימבול (למשל NFLX)" />
         <button id="addBtn">הוסף</button>
@@ -430,6 +440,7 @@
         setAlertState(alertState);
         setAlertLastFire(alertLastFire);
         if (triggers.length) statusEl.textContent = `התראת מחיר: ${triggers.join(' | ')}`;
+        updateKpi(rows);
         const delayedCount = rows.filter(r => r.delayed).length;
         const liveCount = rows.length - delayedCount;
         const ts = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
@@ -440,6 +451,18 @@
         updateFooterRefresh(ts);
         initSortable();
         requestAnimationFrame(() => { box.style.minHeight = ''; });
+      }
+
+      function updateKpi(rows) {
+        const valid = (rows || []).filter(r => Number.isFinite(r.changePct));
+        const up = valid.filter(r => r.change > 0).length;
+        const down = valid.filter(r => r.change < 0).length;
+        const top = valid.length ? valid.reduce((a,b)=> (a.changePct > b.changePct ? a : b)) : null;
+        const weak = valid.length ? valid.reduce((a,b)=> (a.changePct < b.changePct ? a : b)) : null;
+        document.getElementById('kpiUp').textContent = String(up);
+        document.getElementById('kpiDown').textContent = String(down);
+        document.getElementById('kpiTop').textContent = top ? `${top.symbol} ${top.changePct.toFixed(2)}%` : '—';
+        document.getElementById('kpiWeak').textContent = weak ? `${weak.symbol} ${weak.changePct.toFixed(2)}%` : '—';
       }
 
       async function loadNews(force = false) {
@@ -465,9 +488,13 @@
 
         const list = document.getElementById('news');
         list.innerHTML = '';
+        const watch = getWatchlist();
         for (const n of items) {
           const li = document.createElement('li');
-          li.innerHTML = `<a href="${n.link}" target="_blank" rel="noopener">${n.title}</a> <button class="translate-btn" data-title="${(n.title || '').replace(/"/g, '&quot;')}">תרגם</button><div class="meta">${n.source || ''} · ${n.pubDate || ''}</div><div class="tiny translation"></div>`;
+          const title = n.title || '';
+          const matched = watch.filter(sym => new RegExp(`\b${sym}\b`, 'i').test(title));
+          const tags = matched.map(sym => `<span class="pin-btn" style="margin-inline-start:4px;">${sym}</span>`).join(' ');
+          li.innerHTML = `<a href="${n.link}" target="_blank" rel="noopener">${title}</a> ${tags} <button class="translate-btn" data-title="${title.replace(/"/g, '&quot;')}">תרגם</button><div class="meta">${n.source || ''} · ${n.pubDate || ''}</div><div class="tiny translation"></div>`;
           list.appendChild(li);
         }
         const t = new Date();
