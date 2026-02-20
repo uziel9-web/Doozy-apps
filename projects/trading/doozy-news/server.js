@@ -71,7 +71,7 @@ app.get('/api/ad-rules', (_req, res) => {
 
 app.get('/api/webview', async (req, res) => {
   const url = String(req.query.url || '').trim();
-  if (!url) return res.status(400).json({ ok:false, error:'url_required' });
+  if (!url) return res.status(400).send('url_required');
   try {
     const r = await fetch(url, {
       headers: {
@@ -81,52 +81,27 @@ app.get('/api/webview', async (req, res) => {
     });
     const raw = await r.text();
 
-    // First choice: true readable article text
-    const rdDom = new JSDOM(raw, { url });
-    const reader = new Readability(rdDom.window.document);
-    const article = reader.parse();
-    if (article?.textContent) {
-      const paragraphs = String(article.textContent)
-        .split(/\n+/)
-        .map(p => p.trim())
-        .filter(p => p.length > 80)
-        .slice(0, 180);
-
-      if (paragraphs.length >= 5) {
-        const html = `<div style="max-width:980px;margin:0 auto;padding:8px 4px;line-height:1.9;color:#e8ecff;background:#0b1020;font-size:22px;">${paragraphs
-          .map(p => `<p style=\"margin:0 0 14px;\">${p.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`)
-          .join('')}</div>`;
-        return res.json({ ok:true, title: article.title || '', html, mode: 'readability', paragraphsCount: paragraphs.length });
-      }
-    }
-
-    // Fallback: clean DOM text blocks (no images)
     const dom = new JSDOM(raw, { url });
     const doc = dom.window.document;
-    [...doc.querySelectorAll('script,style,link,noscript,iframe,header,footer,nav,aside,img,video,picture,svg')].forEach(el => el.remove());
+
+    // Ad/script cleanup (WebView-first mode)
+    [...doc.querySelectorAll('script,noscript,iframe,aside,[id*="ad"],[class*="ad-"],[class*="advert"],[class*="banner"')].forEach(el => el.remove());
     for (const sel of AD_RULES.hideSelectors) {
       try { doc.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
     }
 
-    const container = doc.querySelector('article') || doc.querySelector('main') || doc.body;
-    const title = (doc.querySelector('meta[property="og:title"]')?.content || doc.querySelector('title')?.textContent || '').trim();
+    const base = doc.querySelector('base') || doc.createElement('base');
+    base.setAttribute('href', url);
+    if (!base.parentNode) doc.head.prepend(base);
 
-    const blocks = [...container.querySelectorAll('h1,h2,h3,p,li,div,span')]
-      .map(el => (el.textContent || '').trim())
-      .filter(t => t.length > 90)
-      .slice(0, 200);
+    const style = doc.createElement('style');
+    style.textContent = `${AD_RULES.hideSelectors.join(',')} { display:none !important; } body{margin:0 auto;max-width:980px;padding:10px;background:#0b1020;color:#e8ecff;line-height:1.7;} p,li,h1,h2,h3{color:#e8ecff;} a{color:#b8c8ff;} img,video{max-width:100%;height:auto;border-radius:8px;} `;
+    doc.head.appendChild(style);
 
-    if (!blocks.length) {
-      return res.json({ ok:false, error:'no_text_blocks_found', title });
-    }
-
-    const html = `<div style="max-width:980px;margin:0 auto;padding:8px 4px;line-height:1.9;color:#e8ecff;background:#0b1020;font-size:22px;">${blocks
-      .map(t => `<p style=\"margin:0 0 14px;\">${t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`)
-      .join('')}</div>`;
-
-    return res.json({ ok:true, title, html, mode: 'fallback-text', paragraphsCount: blocks.length });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(dom.serialize());
   } catch (e) {
-    return res.status(500).json({ ok:false, error:String(e?.message||e) });
+    return res.status(500).send(`<html><body style="font-family:Arial;padding:16px;background:#0b1020;color:#e8ecff;">Failed to load article: ${String(e?.message || e)}</body></html>`);
   }
 });
 
