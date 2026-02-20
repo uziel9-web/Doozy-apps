@@ -81,9 +81,29 @@ app.get('/api/webview', async (req, res) => {
     });
     const raw = await r.text();
 
+    // First choice: true readable article text
+    const rdDom = new JSDOM(raw, { url });
+    const reader = new Readability(rdDom.window.document);
+    const article = reader.parse();
+    if (article?.textContent) {
+      const paragraphs = String(article.textContent)
+        .split(/\n+/)
+        .map(p => p.trim())
+        .filter(p => p.length > 80)
+        .slice(0, 180);
+
+      if (paragraphs.length >= 5) {
+        const html = `<div style="max-width:900px;margin:0 auto;padding:12px;line-height:1.75;color:#111;background:#fff;">${paragraphs
+          .map(p => `<p>${p.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`)
+          .join('')}</div>`;
+        return res.json({ ok:true, title: article.title || '', html, mode: 'readability', paragraphsCount: paragraphs.length });
+      }
+    }
+
+    // Fallback: clean DOM text blocks (no images)
     const dom = new JSDOM(raw, { url });
     const doc = dom.window.document;
-    [...doc.querySelectorAll('script,style,link,noscript,iframe,header,footer,nav,aside')].forEach(el => el.remove());
+    [...doc.querySelectorAll('script,style,link,noscript,iframe,header,footer,nav,aside,img,video,picture,svg')].forEach(el => el.remove());
     for (const sel of AD_RULES.hideSelectors) {
       try { doc.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
     }
@@ -91,14 +111,20 @@ app.get('/api/webview', async (req, res) => {
     const container = doc.querySelector('article') || doc.querySelector('main') || doc.body;
     const title = (doc.querySelector('meta[property="og:title"]')?.content || doc.querySelector('title')?.textContent || '').trim();
 
-    // shrink payload: keep only core readable blocks
-    const blocks = [...container.querySelectorAll('h1,h2,h3,p,li,img')]
-      .slice(0, 400)
-      .map(el => el.outerHTML)
-      .join('');
+    const blocks = [...container.querySelectorAll('h1,h2,h3,p,li,div,span')]
+      .map(el => (el.textContent || '').trim())
+      .filter(t => t.length > 90)
+      .slice(0, 200);
 
-    const cleanedHtml = `<div style="max-width:900px;margin:0 auto;padding:12px;line-height:1.65;color:#111;background:#fff;">${blocks}</div>`;
-    return res.json({ ok:true, title, html: cleanedHtml });
+    if (!blocks.length) {
+      return res.json({ ok:false, error:'no_text_blocks_found', title });
+    }
+
+    const html = `<div style="max-width:900px;margin:0 auto;padding:12px;line-height:1.75;color:#111;background:#fff;">${blocks
+      .map(t => `<p>${t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`)
+      .join('')}</div>`;
+
+    return res.json({ ok:true, title, html, mode: 'fallback-text', paragraphsCount: blocks.length });
   } catch (e) {
     return res.status(500).json({ ok:false, error:String(e?.message||e) });
   }

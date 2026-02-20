@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 04:15</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 04:35</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -254,7 +254,7 @@
         readerBodyEl.innerHTML = `<div class="webview-content">טוען...</div>`;
         try {
           const j = await fetchJson(apiUrl(`/api/webview?url=${encodeURIComponent(url)}`));
-          if (!j?.ok || !j?.html) throw new Error(j?.error || 'webview_fetch_failed');
+          if (!j?.ok || !j?.html) throw new Error(j?.error || 'לא נמצא טקסט זמין בכתבה זו');
           readerBodyEl.innerHTML = `<div class="webview-content">${j.html}</div>`;
           readerMetaEl.textContent = 'מצב קריאה פנימי (ניקוי פרסומות)';
           if (j?.title) readerTitleEl.textContent = j.title;
