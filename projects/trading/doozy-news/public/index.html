@@ -35,6 +35,51 @@
         --footer: #74a1b4;
         --warn: #b45b00;
       }
+      body[data-theme="light-clean"] {
+        --bg: #f6f8fb;
+        --text: #16212b;
+        --muted: #617080;
+        --muted-2: #6d7d8d;
+        --control-bg: #ffffff;
+        --control-border: #d2dce8;
+        --control-text: #1c2a35;
+        --card-bg: #ffffff;
+        --card-border: #dbe4ef;
+        --title: #152433;
+        --chip-text: #3a4d60;
+        --footer: #7b8da0;
+        --warn: #b85b00;
+      }
+      body[data-theme="sepia-news"] {
+        --bg: #f5efdf;
+        --text: #33281f;
+        --muted: #6c5d4d;
+        --muted-2: #786958;
+        --control-bg: #efe3cb;
+        --control-border: #cbb89b;
+        --control-text: #3d2f22;
+        --card-bg: #fbf4e7;
+        --card-border: #ddc8ab;
+        --title: #5b3c1f;
+        --chip-text: #5f4a34;
+        --footer: #8f7a62;
+        --warn: #9b4300;
+      }
+      body[data-theme="slate-pro"] {
+        --bg: #161b23;
+        --text: #e5e9f0;
+        --muted: #9ba7b7;
+        --muted-2: #aab5c3;
+        --control-bg: #212a36;
+        --control-border: #334154;
+        --control-text: #e7edf7;
+        --card-bg: #1b2431;
+        --card-border: #2f3c4f;
+        --title: #e8eefc;
+        --chip-text: #c9d4e8;
+        --footer: #7e8da3;
+        --warn: #ffbf72;
+      }
       body { font-family: Arial, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
       .wrap { max-width: 1100px; margin: 0 auto; padding: 10px; }
       h1 { margin: 0 0 4px; text-align:center; font-size: 16px; line-height: 1.15; }
@@ -79,6 +124,9 @@
           <select id="themeSelect" class="mini-select">
             <option value="night">Night</option>
             <option value="jungle-love">Jungle Love</option>
+            <option value="light-clean">Light Clean</option>
+            <option value="sepia-news">Sepia News</option>
+            <option value="slate-pro">Slate Pro</option>
           </select>
         </div>
         <div id="backendDev" class="controls-grid dev-only">
@@ -120,14 +168,16 @@
       const DEFAULT_BACKEND = 'https://doozy-news-extractor.onrender.com';
 
       function applyTheme(theme) {
-        const t = theme === 'jungle-love' ? 'jungle-love' : 'night';
+        const allowed = new Set(['night', 'jungle-love', 'light-clean', 'sepia-news', 'slate-pro']);
+        const t = allowed.has(theme) ? theme : 'night';
         if (t === 'night') document.body.removeAttribute('data-theme');
         else document.body.setAttribute('data-theme', t);
         localStorage.setItem(LS_THEME, t);
       }
 
       function getSavedTheme() {
-        return localStorage.getItem(LS_THEME) || 'night';
+        const t = localStorage.getItem(LS_THEME) || 'night';
+        return t;
       }
 
       function getBackendBase() {
@@ -229,6 +279,22 @@
           seen.add(it.link);
           return true;
         });
+      }
+
+      function topicOfItem(item) {
+        const src = String(item?.source || '').toLowerCase();
+        const text = `${item?.title || ''} ${item?.desc || ''}`.toLowerCase();
+        if (['כלכליסט', 'גלובס', 'דה מרקר', 'themarker', 'calcalist', 'globes'].some(s => src.includes(s.toLowerCase()))) {
+          if (/(טכנולוג|הייטק|ai|בינה|סייבר|סטארט|שבב|chip|ענן|אפל|גוגל|מטא|מיקרוסופט|nvidia|tesla|טסלה|openai)/i.test(text)) return 'tech';
+          return 'biz';
+        }
+        if (/(טכנולוג|הייטק|ai|בינה|סייבר|סטארט|שבב|chip|ענן|אפל|גוגל|מטא|מיקרוסופט|nvidia|tesla|טסלה|openai)/i.test(text)) return 'tech';
+        return 'general';
+      }
+
+      function matchesTopic(item, mode) {
+        if (mode === 'all') return true;
+        return topicOfItem(item) === mode;
       }
 
       async function fetchRaw(url) {
@@ -341,7 +407,7 @@
 
       async function loadNews(force = false) {
         const mode = document.getElementById('sourceSelect').value;
-        const feeds = SOURCES[mode] || SOURCES.all;
+        const feeds = SOURCES.all || [];
         const prevH = gridEl.offsetHeight;
         if (prevH > 0) gridEl.style.minHeight = `${prevH}px`;
         statusEl.textContent = 'טוען כותרות...';
@@ -361,10 +427,11 @@
           }
         }
 
-        const rows = uniqByLink(all).sort((a,b) => b.ts - a.ts).slice(0, 60);
+        const rows = uniqByLink(all).sort((a,b) => b.ts - a.ts);
+        const filteredRows = rows.filter((it) => matchesTopic(it, mode)).slice(0, 60);
         gridEl.innerHTML = '';
 
-        if (!rows.length) {
+        if (!filteredRows.length) {
           gridEl.innerHTML = '<div class="card warn">לא הצלחתי למשוך כותרות כרגע. ייתכן שחלק מהמקורות איטיים/חסומים כרגע. נסה שוב בעוד דקה.</div>';
           statusEl.textContent = 'אין נתונים כרגע';
           gridEl.style.minHeight = '';
@@ -373,7 +440,7 @@
 
         const frag = document.createDocumentFragment();
         articleMap.clear();
-        for (const n of rows) {
+        for (const n of filteredRows) {
           const div = document.createElement('div');
           div.className = 'card';
           const when = n.ts ? new Date(n.ts).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : (n.pubDate || '');
@@ -388,8 +455,8 @@
           frag.appendChild(div);
         }
         gridEl.appendChild(frag);
-        statusEl.textContent = `נטענו ${rows.length} כותרות (${okFeeds}/${feeds.length} מקורות)`;
-        if (!rows.length) statusEl.textContent = `אין כותרות כרגע (${okFeeds}/${feeds.length} מקורות הצליחו)`;
+        statusEl.textContent = `נטענו ${filteredRows.length} כותרות (${okFeeds}/${feeds.length} מקורות) · סינון: ${mode}`;
+        if (!filteredRows.length) statusEl.textContent = `אין כותרות כרגע לסינון "${mode}" (${okFeeds}/${feeds.length} מקורות הצליחו)`;
         requestAnimationFrame(() => { gridEl.style.minHeight = ''; });
       }
 
