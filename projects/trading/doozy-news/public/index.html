@@ -35,6 +35,36 @@
         --footer: #74a1b4;
         --warn: #b45b00;
       }
+      body[data-theme="jungle-pop"] {
+        --bg: #e9fff3;
+        --text: #124336;
+        --muted: #2f8b75;
+        --muted-2: #2a7d93;
+        --control-bg: #7ee7f5;
+        --control-border: #13b4c8;
+        --control-text: #064b54;
+        --card-bg: #f3ffe0;
+        --card-border: #9adf49;
+        --title: #f07d00;
+        --chip-text: #0f6a58;
+        --footer: #2d9d89;
+        --warn: #d85c00;
+      }
+      body[data-theme="jungle-neon"] {
+        --bg: #0f1f1a;
+        --text: #e9fff7;
+        --muted: #7ce9d2;
+        --muted-2: #8ad9ff;
+        --control-bg: #123f35;
+        --control-border: #2de2b0;
+        --control-text: #d9fff3;
+        --card-bg: #173128;
+        --card-border: #28c89a;
+        --title: #ff9b2f;
+        --chip-text: #9dfde2;
+        --footer: #66d8bc;
+        --warn: #ffb14a;
+      }
       body[data-theme="light-clean"] {
         --bg: #f6f8fb;
         --text: #16212b;
@@ -123,7 +153,9 @@
           <button id="refreshBtn" class="refresh-btn">רענן חדשות</button>
           <select id="themeSelect" class="mini-select">
             <option value="night">Night</option>
-            <option value="jungle-love">Jungle Love</option>
+            <option value="jungle-love">Jungle Love · Calm</option>
+            <option value="jungle-pop">Jungle Love · Pop</option>
+            <option value="jungle-neon">Jungle Love · Neon</option>
             <option value="light-clean">Light Clean</option>
             <option value="sepia-news">Sepia News</option>
             <option value="slate-pro">Slate Pro</option>
@@ -168,7 +200,7 @@
       const DEFAULT_BACKEND = 'https://doozy-news-extractor.onrender.com';
 
       function applyTheme(theme) {
-        const allowed = new Set(['night', 'jungle-love', 'light-clean', 'sepia-news', 'slate-pro']);
+        const allowed = new Set(['night', 'jungle-love', 'jungle-pop', 'jungle-neon', 'light-clean', 'sepia-news', 'slate-pro']);
         const t = allowed.has(theme) ? theme : 'night';
         if (t === 'night') document.body.removeAttribute('data-theme');
         else document.body.setAttribute('data-theme', t);
