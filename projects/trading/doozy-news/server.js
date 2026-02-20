@@ -17,8 +17,6 @@ app.use(express.static('public'));
 
 const SOURCES = {
   all: [
-    { name: 'Google News HE', url: 'https://news.google.com/rss?hl=he&gl=IL&ceid=IL:he' },
-    { name: 'Google Business HE', url: 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=he&gl=IL&ceid=IL:he' },
     { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
     { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2' },
     { name: 'דה מרקר', url: 'https://www.themarker.com/cmlink/1.628' },
@@ -26,18 +24,15 @@ const SOURCES = {
     { name: 'N12', url: 'https://www.mako.co.il/rss-news?partner=rss' }
   ],
   biz: [
-    { name: 'Google Business HE', url: 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=he&gl=IL&ceid=IL:he' },
     { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
     { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2' },
     { name: 'דה מרקר', url: 'https://www.themarker.com/cmlink/1.628' }
   ],
   general: [
-    { name: 'Google News HE', url: 'https://news.google.com/rss?hl=he&gl=IL&ceid=IL:he' },
     { name: 'ynet', url: 'https://www.ynet.co.il/Integration/StoryRss2.xml' },
     { name: 'N12', url: 'https://www.mako.co.il/rss-news?partner=rss' }
   ],
   tech: [
-    { name: 'Google Tech HE', url: 'https://news.google.com/rss/search?q=%D7%98%D7%9B%D7%A0%D7%95%D7%9C%D7%95%D7%92%D7%99%D7%94&hl=he&gl=IL&ceid=IL:he' },
     { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
     { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=607' }
   ]
@@ -85,7 +80,7 @@ app.get('/api/webview', async (req, res) => {
     const doc = dom.window.document;
 
     // Ad/script cleanup (WebView-first mode)
-    [...doc.querySelectorAll('script,noscript,iframe,aside,[id*="ad"],[class*="ad-"],[class*="advert"],[class*="banner"')].forEach(el => el.remove());
+    [...doc.querySelectorAll('script,noscript,iframe,aside,[id*="ad"],[class*="ad-"],[class*="advert"],[class*="banner"]')].forEach(el => el.remove());
     for (const sel of AD_RULES.hideSelectors) {
       try { doc.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
     }
