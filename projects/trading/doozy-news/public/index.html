@@ -252,19 +252,9 @@
               'hidenavigationbuttons=yes',
               'hideurlbar=yes',
               'zoom=yes',
-              'closebuttoncaption=סגור',
-              'beforeload=yes'
+              'closebuttoncaption=סגור'
             ].join(',');
             const ref = cordova.InAppBrowser.open(url, '_blank', opts);
-
-            const blocked = ['doubleclick.net','googlesyndication.com','googleadservices.com','googletagmanager.com','taboola.com','outbrain.com','criteo.com','facebook.net'];
-            ref.addEventListener('beforeload', (params, callback) => {
-              try {
-                const u = new URL(params.url);
-                if (blocked.some(d => u.hostname.includes(d))) return;
-              } catch {}
-              callback(params.url);
-            });
 
             ref.addEventListener('loadstop', () => {
               const js = `
