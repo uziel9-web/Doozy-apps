@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 06:10</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 06:30</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -254,11 +254,13 @@
               'zoom=yes',
               'closebuttoncaption=סגור'
             ].join(',');
-            window.open(url, '_blank', opts);
+            const proxied = apiUrl(`/api/webview?url=${encodeURIComponent(url)}`);
+            window.open(proxied, '_blank', opts);
             return;
           }
         } catch {}
-        window.open(url, '_blank');
+        const proxied = apiUrl(`/api/webview?url=${encodeURIComponent(url)}`);
+        window.open(proxied, '_blank');
       }
 
       async function loadNews(force = false) {

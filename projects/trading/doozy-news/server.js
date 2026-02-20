@@ -67,33 +67,77 @@ app.get('/api/ad-rules', (_req, res) => {
 app.get('/api/webview', async (req, res) => {
   const url = String(req.query.url || '').trim();
   if (!url) return res.status(400).send('url_required');
+
   try {
+    const target = new URL(url);
     const r = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
         'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8'
-      }
+      },
+      redirect: 'follow'
     });
-    const raw = await r.text();
 
-    const dom = new JSDOM(raw, { url });
+    const raw = await r.text();
+    const finalUrl = r.url || url;
+    const finalHost = (() => { try { return new URL(finalUrl).host; } catch { return target.host; } })();
+
+    const dom = new JSDOM(raw, { url: finalUrl });
     const doc = dom.window.document;
 
-    // Ad/script cleanup (WebView-first mode)
-    [...doc.querySelectorAll('script,noscript,iframe,aside,[id*="ad"],[class*="ad-"],[class*="advert"],[class*="banner"]')].forEach(el => el.remove());
+    // Remove heavy/noisy elements
+    [...doc.querySelectorAll('script,noscript,iframe,aside,nav,header,footer,form,button,input,textarea,select,video,audio,source,svg,canvas,ins')]
+      .forEach(el => el.remove());
+
+    // Remove known ad containers + rule-based selectors
+    [...doc.querySelectorAll('[id*="ad"],[class*="ad-"],[class*="advert"],[class*="banner"],[class*="popup"],[class*="sponsor"],[class*="taboola"],[class*="outbrain"]')]
+      .forEach(el => el.remove());
     for (const sel of AD_RULES.hideSelectors) {
       try { doc.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
     }
 
+    // Drop third-party resources aggressively
+    [...doc.querySelectorAll('[src],[href]')].forEach((el) => {
+      const attr = el.hasAttribute('src') ? 'src' : 'href';
+      const v = el.getAttribute(attr) || '';
+      if (!v || v.startsWith('#') || v.startsWith('data:')) return;
+      try {
+        const abs = new URL(v, finalUrl);
+        const host = abs.host;
+        const blocked = AD_RULES.blockedHosts.some((h) => host.includes(h));
+        const thirdParty = host !== finalHost;
+        if (blocked || (thirdParty && (el.tagName === 'SCRIPT' || el.tagName === 'IFRAME' || el.tagName === 'LINK'))) {
+          el.remove();
+        }
+      } catch {}
+    });
+
+    // Keep links inside our WebView proxy flow
+    [...doc.querySelectorAll('a[href]')].forEach((a) => {
+      try {
+        const abs = new URL(a.getAttribute('href'), finalUrl).toString();
+        a.setAttribute('href', `/api/webview?url=${encodeURIComponent(abs)}`);
+      } catch {}
+      a.setAttribute('target', '_self');
+      a.setAttribute('rel', 'noopener noreferrer');
+    });
+
     const base = doc.querySelector('base') || doc.createElement('base');
-    base.setAttribute('href', url);
+    base.setAttribute('href', finalUrl);
     if (!base.parentNode) doc.head.prepend(base);
 
+    // Lock down page execution as much as possible
+    const csp = doc.createElement('meta');
+    csp.setAttribute('http-equiv', 'Content-Security-Policy');
+    csp.setAttribute('content', `default-src 'self' data: https://${finalHost}; img-src * data: blob:; style-src 'self' 'unsafe-inline' https://${finalHost}; script-src 'none'; frame-src 'none'; connect-src 'none';`);
+    doc.head.appendChild(csp);
+
     const style = doc.createElement('style');
-    style.textContent = `${AD_RULES.hideSelectors.join(',')} { display:none !important; } body{margin:0 auto;max-width:980px;padding:10px;background:#0b1020;color:#e8ecff;line-height:1.7;} p,li,h1,h2,h3{color:#e8ecff;} a{color:#b8c8ff;} img,video{max-width:100%;height:auto;border-radius:8px;} `;
+    style.textContent = `${AD_RULES.hideSelectors.join(',')} { display:none !important; } body{margin:0 auto;max-width:980px;padding:12px;background:#0b1020;color:#e8ecff;line-height:1.7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;} p,li,h1,h2,h3,h4{color:#e8ecff;} a{color:#9fc0ff;text-decoration:underline;} img{max-width:100%;height:auto;border-radius:8px;} .share,.social,.newsletter,.recommended,[role="complementary"]{display:none!important;}`;
     doc.head.appendChild(style);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
     return res.send(dom.serialize());
   } catch (e) {
     return res.status(500).send(`<html><body style="font-family:Arial;padding:16px;background:#0b1020;color:#e8ecff;">Failed to load article: ${String(e?.message || e)}</body></html>`);
