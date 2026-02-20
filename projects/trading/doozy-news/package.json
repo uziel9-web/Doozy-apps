@@ -13,6 +13,7 @@
     "@capacitor/cli": "^8.1.0",
     "@capacitor/core": "^8.1.0",
     "@mozilla/readability": "^0.6.0",
+    "cordova-plugin-inappbrowser": "^6.0.0",
     "express": "^4.21.2",
     "fast-xml-parser": "^4.5.3",
     "jsdom": "^28.1.0"

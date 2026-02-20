@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 05:55</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 06:10</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -242,12 +242,23 @@
       }
 
       async function openArticle(url, fallbackTitle='', fallbackSnippet='') {
-        currentArticleUrl = url;
-        readerEl.classList.add('open');
-        readerTitleEl.textContent = fallbackTitle || 'טוען כתבה...';
-        readerMetaEl.textContent = 'מצב WebView פנימי + ניקוי פרסומות';
-        const src = apiUrl(`/api/webview?url=${encodeURIComponent(url)}`);
-        readerBodyEl.innerHTML = `<iframe id="articleFrame" class="webview-frame" src="${src}"></iframe>`;
+        // WebView browser mode (no reader extraction / no iframe)
+        try {
+          if (window.cordova) {
+            const opts = [
+              'location=yes',
+              'toolbar=yes',
+              'hardwareback=yes',
+              'hidenavigationbuttons=no',
+              'hideurlbar=no',
+              'zoom=yes',
+              'closebuttoncaption=סגור'
+            ].join(',');
+            window.open(url, '_blank', opts);
+            return;
+          }
+        } catch {}
+        window.open(url, '_blank');
       }
 
       async function loadNews(force = false) {
