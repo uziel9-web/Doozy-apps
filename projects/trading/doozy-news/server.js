@@ -71,7 +71,7 @@ app.get('/api/ad-rules', (_req, res) => {
 
 app.get('/api/webview', async (req, res) => {
   const url = String(req.query.url || '').trim();
-  if (!url) return res.status(400).send('url_required');
+  if (!url) return res.status(400).json({ ok:false, error:'url_required' });
   try {
     const r = await fetch(url, {
       headers: {
@@ -79,28 +79,28 @@ app.get('/api/webview', async (req, res) => {
         'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8'
       }
     });
-    let html = await r.text();
+    const raw = await r.text();
 
-    const dom = new JSDOM(html, { url });
+    const dom = new JSDOM(raw, { url });
     const doc = dom.window.document;
-
-    [...doc.querySelectorAll('script,noscript,iframe')].forEach(el => el.remove());
+    [...doc.querySelectorAll('script,style,link,noscript,iframe,header,footer,nav,aside')].forEach(el => el.remove());
     for (const sel of AD_RULES.hideSelectors) {
       try { doc.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
     }
 
-    const base = doc.querySelector('base') || doc.createElement('base');
-    base.setAttribute('href', url);
-    if (!base.parentNode) doc.head.prepend(base);
+    const container = doc.querySelector('article') || doc.querySelector('main') || doc.body;
+    const title = (doc.querySelector('meta[property="og:title"]')?.content || doc.querySelector('title')?.textContent || '').trim();
 
-    const style = doc.createElement('style');
-    style.textContent = `${AD_RULES.hideSelectors.join(',')} { display:none !important; } body{max-width:900px;margin:0 auto;padding:12px;line-height:1.6;} img,video{max-width:100%;height:auto;} `;
-    doc.head.appendChild(style);
+    // shrink payload: keep only core readable blocks
+    const blocks = [...container.querySelectorAll('h1,h2,h3,p,li,img')]
+      .slice(0, 400)
+      .map(el => el.outerHTML)
+      .join('');
 
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.send(dom.serialize());
+    const cleanedHtml = `<div style="max-width:900px;margin:0 auto;padding:12px;line-height:1.65;color:#111;background:#fff;">${blocks}</div>`;
+    return res.json({ ok:true, title, html: cleanedHtml });
   } catch (e) {
-    return res.status(500).send(`<html><body style="font-family:Arial;padding:16px;background:#111;color:#fff;">Failed to load article: ${String(e?.message||e)}</body></html>`);
+    return res.status(500).json({ ok:false, error:String(e?.message||e) });
   }
 });
 

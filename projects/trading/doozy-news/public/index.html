@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 04:00</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 04:15</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -253,9 +253,11 @@
         readerMetaEl.textContent = 'טוען כתבה מלאה...';
         readerBodyEl.innerHTML = `<div class="webview-content">טוען...</div>`;
         try {
-          const html = await fetchRaw(apiUrl(`/api/webview?url=${encodeURIComponent(url)}`));
-          readerBodyEl.innerHTML = `<div class="webview-content">${html}</div>`;
+          const j = await fetchJson(apiUrl(`/api/webview?url=${encodeURIComponent(url)}`));
+          if (!j?.ok || !j?.html) throw new Error(j?.error || 'webview_fetch_failed');
+          readerBodyEl.innerHTML = `<div class="webview-content">${j.html}</div>`;
           readerMetaEl.textContent = 'מצב קריאה פנימי (ניקוי פרסומות)';
+          if (j?.title) readerTitleEl.textContent = j.title;
         } catch (e) {
           readerBodyEl.innerHTML = `<div class="warn">שגיאה בטעינת כתבה מלאה. ${escapeHtml(String(e?.message || e))}</div>`;
         }
