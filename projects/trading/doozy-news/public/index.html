@@ -5,23 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Doozy News</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 0; background: #0b1020; color: #e8ecff; }
+      :root {
+        --bg: #0b1020;
+        --text: #e8ecff;
+        --muted: #99a6dd;
+        --muted-2: #a9b4e7;
+        --control-bg: #26346a;
+        --control-border: #3a4a8e;
+        --control-text: #ffffff;
+        --card-bg: #141b34;
+        --card-border: #283157;
+        --title: #dbe2ff;
+        --chip-text: #cdd7ff;
+        --footer: #7f8dc6;
+        --warn: #ffd27f;
+      }
+      body[data-theme="jungle-love"] {
+        --bg: #f8fbff;
+        --text: #143244;
+        --muted: #5f7f93;
+        --muted-2: #537285;
+        --control-bg: #d9f4ff;
+        --control-border: #84d8ec;
+        --control-text: #0f4259;
+        --card-bg: #fff7ef;
+        --card-border: #ffc98f;
+        --title: #d56b00;
+        --chip-text: #0e6678;
+        --footer: #74a1b4;
+        --warn: #b45b00;
+      }
+      body { font-family: Arial, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
       .wrap { max-width: 1100px; margin: 0 auto; padding: 10px; }
       h1 { margin: 0 0 4px; text-align:center; font-size: 16px; line-height: 1.15; }
-      .sub { color: #a9b4e7; margin-bottom: 6px; text-align:center; }
+      .sub { color: var(--muted-2); margin-bottom: 6px; text-align:center; }
       .topline { display:flex; flex-direction:column; gap:6px; margin:6px 0; width:100%; }
-      .controls-grid { display:grid; grid-template-columns: 1fr 1fr; gap:6px; width:100%; }
-      .mini-select,.refresh-btn { background:#26346a; border:1px solid #3a4a8e; color:#fff; border-radius:8px; padding:8px 10px; font-size:15px; line-height:1.15; }
-      .meta { color:#99a6dd; font-size:11px; text-align:center; min-height:14px; }
+      .controls-grid { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; width:100%; }
+      .mini-select,.refresh-btn { background:var(--control-bg); border:1px solid var(--control-border); color:var(--control-text); border-radius:8px; padding:8px 10px; font-size:15px; line-height:1.15; }
+      .meta { color:var(--muted); font-size:11px; text-align:center; min-height:14px; }
       .grid { display:grid; gap:6px; grid-template-columns:1fr; margin-top:6px; }
-      .card { background: #141b34; border: 1px solid #283157; border-radius: 10px; padding: 8px 10px; }
+      .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 8px 10px; }
       .title { font-size:14px; font-weight:700; line-height:1.2; margin-bottom:4px; }
-      .title a { color:#dbe2ff; text-decoration:none; }
+      .title a { color:var(--title); text-decoration:none; }
       .title a:hover { text-decoration:underline; }
       .row { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
-      .chip { font-size:11px; border:1px solid #3a4a8e; color:#cdd7ff; border-radius:999px; padding:2px 8px; }
-      .footer-brand { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7f8dc6; opacity: .9; pointer-events: none; }
-      .warn { color:#ffd27f; text-align:center; }
+      .chip { font-size:11px; border:1px solid var(--control-border); color:var(--chip-text); border-radius:999px; padding:2px 8px; }
+      .footer-brand { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--footer); opacity: .9; pointer-events: none; }
+      .warn { color:var(--warn); text-align:center; }
       .reader { position:fixed; inset:0; background:rgba(5,8,18,.92); display:none; z-index:999; }
       .reader.open { display:block; }
       .reader-box { max-width:100%; height:100%; margin:0; padding:0; overflow:auto; }
@@ -46,6 +76,10 @@
             <option value="tech">טכנולוגיה</option>
           </select>
           <button id="refreshBtn" class="refresh-btn">רענן חדשות</button>
+          <select id="themeSelect" class="mini-select">
+            <option value="night">Night</option>
+            <option value="jungle-love">Jungle Love</option>
+          </select>
         </div>
         <div id="backendDev" class="controls-grid dev-only">
           <input id="backendUrl" class="mini-select" placeholder="Backend URL לחילוץ כתבות מלאות" style="text-align:left;direction:ltr;" />
@@ -82,9 +116,19 @@
       let currentArticleUrl = '';
       const articleMap = new Map();
       const LS_BACKEND = 'doozy_news_backend_v1';
+      const LS_THEME = 'doozy_news_theme_v1';
       const DEFAULT_BACKEND = 'https://doozy-news-extractor.onrender.com';
 
+      function applyTheme(theme) {
+        const t = theme === 'jungle-love' ? 'jungle-love' : 'night';
+        if (t === 'night') document.body.removeAttribute('data-theme');
+        else document.body.setAttribute('data-theme', t);
+        localStorage.setItem(LS_THEME, t);
+      }
 
+      function getSavedTheme() {
+        return localStorage.getItem(LS_THEME) || 'night';
+      }
 
       function getBackendBase() {
         return (localStorage.getItem(LS_BACKEND) || DEFAULT_BACKEND || '').trim().replace(/\/$/, '');
@@ -351,6 +395,7 @@
 
       document.getElementById('refreshBtn').addEventListener('click', () => loadNews(true));
       document.getElementById('sourceSelect').addEventListener('change', () => loadNews(true));
+      document.getElementById('themeSelect').addEventListener('change', (e) => applyTheme(e.target.value));
       document.addEventListener('click', (e) => {
         const a = e.target.closest('a');
         if (a) { e.preventDefault(); e.stopPropagation(); }
@@ -369,6 +414,11 @@
         openArticle(u, a.getAttribute('data-title') || a.textContent || '', item?.desc || '');
       });
       document.getElementById('closeReader').addEventListener('click', () => { readerEl.classList.remove('open'); });
+      const themeSelect = document.getElementById('themeSelect');
+      const initialTheme = getSavedTheme();
+      applyTheme(initialTheme);
+      if (themeSelect) themeSelect.value = initialTheme;
+
       const devMode = new URLSearchParams(location.search).get('dev') === '1';
       const backendDev = document.getElementById('backendDev');
       const backendInput = document.getElementById('backendUrl');
