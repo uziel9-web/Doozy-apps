@@ -260,22 +260,19 @@
               const js = `
                 (function(){
                   const sels=[
-                    '[id*="ad"]','[class*="ad-"]','[class*="advert"]','[class*="banner"]',
-                    '[class*="popup"]','[class*="sponsor"]','[class*="taboola"]','[class*="outbrain"]',
-                    '.newsletter','.recommended','.share','.social','.follow-us',
-                    'iframe[src*="doubleclick"]','iframe[src*="googlesyndication"]','iframe[src*="taboola"]',
-                    '[data-ad]','[data-testid*="ad"]','.trinity-player','.audio-player','.video-player'
+                    'iframe[src*="doubleclick"]','iframe[src*="googlesyndication"]','iframe[src*="googleadservices"]',
+                    'iframe[src*="taboola"]','iframe[src*="outbrain"]','ins.adsbygoogle','.adsbygoogle',
+                    '[id^="google_ads"]','[id*="taboola"]','[class*="taboola"]','[class*="outbrain"]',
+                    '[data-ad-slot]','[data-google-query-id]'
                   ];
                   function killAds(){
-                    sels.forEach(s=>document.querySelectorAll(s).forEach(el=>el.remove()));
-                    document.querySelectorAll('iframe[src*="doubleclick"],iframe[src*="googlesyndication"],iframe[src*="taboola"],ins').forEach(el=>el.remove());
-                    document.querySelectorAll('script[src*="doubleclick"],script[src*="googlesyndication"],script[src*="googletagmanager"],script[src*="taboola"],script[src*="outbrain"]')
-                      .forEach(el=>el.remove());
+                    try { sels.forEach(s=>document.querySelectorAll(s).forEach(el=>el.remove())); } catch(e) {}
                   }
                   killAds();
-                  const mo=new MutationObserver(()=>{ killAds(); });
+                  let t;
+                  const mo=new MutationObserver(()=>{ clearTimeout(t); t=setTimeout(killAds, 120); });
                   mo.observe(document.documentElement,{childList:true,subtree:true});
-                  setTimeout(()=>mo.disconnect(),15000);
+                  setTimeout(()=>mo.disconnect(),12000);
                 })();`;
               ref.executeScript({ code: js });
             });
