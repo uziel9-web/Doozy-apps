@@ -283,12 +283,42 @@
 
       function topicOfItem(item) {
         const src = String(item?.source || '').toLowerCase();
-        const text = `${item?.title || ''} ${item?.desc || ''}`.toLowerCase();
+        const title = String(item?.title || '');
+        const desc = String(item?.desc || '');
+        const text = `${title} ${desc}`.toLowerCase();
+
+        const countHits = (patterns) => patterns.reduce((acc, re) => acc + (re.test(text) ? 1 : 0), 0);
+
+        const techPatterns = [
+          /טכנולוג/, /הייטק/, /בינה מלאכותית/, /\bai\b/i, /openai/i, /סייבר/, /שבב/, /chip/i,
+          /סטארט[\s-]?אפ/, /startup/i, /ענן/, /cloud/i, /אפל/, /apple/i, /גוגל/, /google/i,
+          /מטא/, /meta\b/i, /מיקרוסופט/, /microsoft/i, /nvidia/i, /טסלה/, /tesla/i
+        ];
+
+        const bizPatterns = [
+          /בורסה/, /מניה/, /מניות/, /שוק ההון/, /מדד/, /נאסד["״]ק/, /דאו ג['׳]ונס/, /s&p/i,
+          /ריבית/, /אינפלציה/, /בנק ישראל/, /פד/, /פדרל ריזרב/, /דולר/, /שקל/, /אג["״]ח/,
+          /איגרות חוב/, /דוחות/, /תוצאות כספיות/, /רווח/, /הכנסות/, /מיזוג/, /רכישה/, /ipo/i,
+          /הנפקה/, /מנכ["״]ל/, /cfo/i
+        ];
+
+        let techScore = countHits(techPatterns) * 2;
+        let bizScore = countHits(bizPatterns) * 2;
+
         if (['כלכליסט', 'גלובס', 'דה מרקר', 'themarker', 'calcalist', 'globes'].some(s => src.includes(s.toLowerCase()))) {
-          if (/(טכנולוג|הייטק|ai|בינה|סייבר|סטארט|שבב|chip|ענן|אפל|גוגל|מטא|מיקרוסופט|nvidia|tesla|טסלה|openai)/i.test(text)) return 'tech';
-          return 'biz';
+          bizScore += 3;
         }
-        if (/(טכנולוג|הייטק|ai|בינה|סייבר|סטארט|שבב|chip|ענן|אפל|גוגל|מטא|מיקרוסופט|nvidia|tesla|טסלה|openai)/i.test(text)) return 'tech';
+
+        if (/(שוק|בורסה|מניה|ריבית|אינפלציה|דולר|שקל)/i.test(title)) bizScore += 2;
+        if (/(טכנולוג|הייטק|בינה|ai|סייבר|שבב|ענן|סטארט)/i.test(title)) techScore += 2;
+
+        if (techScore === 0 && bizScore === 0) return 'general';
+        if (techScore >= bizScore + 1) return 'tech';
+        if (bizScore >= techScore + 1) return 'biz';
+
+        // Tie-breaker
+        if (/(טכנולוג|הייטק|ai|סייבר|בינה)/i.test(title)) return 'tech';
+        if (/(בורסה|מניה|שוק ההון|ריבית|אינפלציה)/i.test(title)) return 'biz';
         return 'general';
       }
 
