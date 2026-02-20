@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 06:45</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 07:00</div>
 
     <script>
       const statusEl = document.getElementById('status');
@@ -246,11 +246,11 @@
         try {
           if (window.cordova) {
             const opts = [
-              'location=yes',
+              'location=no',
               'toolbar=yes',
               'hardwareback=yes',
               'hidenavigationbuttons=no',
-              'hideurlbar=no',
+              'hideurlbar=yes',
               'zoom=yes',
               'closebuttoncaption=סגור',
               'beforeload=yes'
@@ -272,12 +272,28 @@
                   const sels=[
                     '[id*="ad"]','[class*="ad-"]','[class*="advert"]','[class*="banner"]',
                     '[class*="popup"]','[class*="sponsor"]','[class*="taboola"]','[class*="outbrain"]',
-                    '.newsletter','.recommended','iframe[src*="doubleclick"]','iframe[src*="googlesyndication"]'
+                    '.newsletter','.recommended','.share','.social','.follow-us',
+                    'iframe[src*="doubleclick"]','iframe[src*="googlesyndication"]','iframe[src*="taboola"]',
+                    '[data-ad]','[data-testid*="ad"]','.trinity-player','.audio-player','.video-player'
                   ];
-                  sels.forEach(s=>document.querySelectorAll(s).forEach(el=>el.remove()));
+                  function killAds(){
+                    sels.forEach(s=>document.querySelectorAll(s).forEach(el=>el.remove()));
+                    document.querySelectorAll('iframe,ins').forEach(el=>el.remove());
+                    // collapse big empty leftovers
+                    document.querySelectorAll('div,section,aside').forEach(el=>{
+                      const txt=(el.innerText||'').trim();
+                      const hasMedia=el.querySelector('img,video,iframe');
+                      const r=el.getBoundingClientRect();
+                      if(!hasMedia && txt.length<8 && r.height>120){ el.remove(); }
+                    });
+                  }
+                  killAds();
                   const st=document.createElement('style');
-                  st.textContent='body{background:#0b1020 !important;color:#e8ecff !important;} p,li,h1,h2,h3,h4,h5{color:#e8ecff !important;} a{color:#9fc0ff !important;}';
+                  st.textContent='body{background:#0b1020 !important;color:#e8ecff !important;} p,li,h1,h2,h3,h4,h5{color:#e8ecff !important;} a{color:#9fc0ff !important;} .sticky,.fixed,[style*="position:fixed"],[style*="position: fixed"]{display:none !important;}';
                   document.head.appendChild(st);
+                  const mo=new MutationObserver(()=>killAds());
+                  mo.observe(document.documentElement,{childList:true,subtree:true});
+                  setTimeout(()=>mo.disconnect(),12000);
                 })();`;
               ref.executeScript({ code: js });
             });
