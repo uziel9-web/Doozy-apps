@@ -276,27 +276,16 @@
                     'iframe[src*="doubleclick"]','iframe[src*="googlesyndication"]','iframe[src*="taboola"]',
                     '[data-ad]','[data-testid*="ad"]','.trinity-player','.audio-player','.video-player'
                   ];
-                  function forceDoozyTheme(){
-                    document.querySelectorAll('link[rel="stylesheet"],style').forEach(el=>el.remove());
-                    const st=document.createElement('style');
-                    st.textContent='*{background:transparent !important;color:#e8ecff !important;box-shadow:none !important;} html,body{background:#0b1020 !important;color:#e8ecff !important;line-height:1.7 !important;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif !important;} p,li,span,div,h1,h2,h3,h4,h5,h6{color:#e8ecff !important;} a{color:#9fc0ff !important;text-decoration:underline !important;} img{max-width:100% !important;height:auto !important;border-radius:8px !important;} .sticky,.fixed,[style*="position:fixed"],[style*="position: fixed"],header,footer,nav,aside,.share,.social,.newsletter,.recommended{display:none !important;}';
-                    document.head.appendChild(st);
-                  }
                   function killAds(){
                     sels.forEach(s=>document.querySelectorAll(s).forEach(el=>el.remove()));
-                    document.querySelectorAll('iframe,ins,script,noscript').forEach(el=>el.remove());
-                    document.querySelectorAll('div,section,aside').forEach(el=>{
-                      const txt=(el.innerText||'').trim();
-                      const hasMedia=el.querySelector('img,video,iframe');
-                      const r=el.getBoundingClientRect();
-                      if(!hasMedia && txt.length<12 && r.height>90){ el.remove(); }
-                    });
+                    document.querySelectorAll('iframe[src*="doubleclick"],iframe[src*="googlesyndication"],iframe[src*="taboola"],ins').forEach(el=>el.remove());
+                    document.querySelectorAll('script[src*="doubleclick"],script[src*="googlesyndication"],script[src*="googletagmanager"],script[src*="taboola"],script[src*="outbrain"]')
+                      .forEach(el=>el.remove());
                   }
-                  forceDoozyTheme();
                   killAds();
-                  const mo=new MutationObserver(()=>{ killAds(); forceDoozyTheme(); });
+                  const mo=new MutationObserver(()=>{ killAds(); });
                   mo.observe(document.documentElement,{childList:true,subtree:true});
-                  setTimeout(()=>mo.disconnect(),12000);
+                  setTimeout(()=>mo.disconnect(),15000);
                 })();`;
               ref.executeScript({ code: js });
             });
