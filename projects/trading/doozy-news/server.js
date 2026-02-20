@@ -93,8 +93,8 @@ app.get('/api/webview', async (req, res) => {
         .slice(0, 180);
 
       if (paragraphs.length >= 5) {
-        const html = `<div style="max-width:900px;margin:0 auto;padding:12px;line-height:1.75;color:#111;background:#fff;">${paragraphs
-          .map(p => `<p>${p.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`)
+        const html = `<div style="max-width:980px;margin:0 auto;padding:8px 4px;line-height:1.9;color:#e8ecff;background:#0b1020;font-size:22px;">${paragraphs
+          .map(p => `<p style=\"margin:0 0 14px;\">${p.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`)
           .join('')}</div>`;
         return res.json({ ok:true, title: article.title || '', html, mode: 'readability', paragraphsCount: paragraphs.length });
       }
@@ -120,8 +120,8 @@ app.get('/api/webview', async (req, res) => {
       return res.json({ ok:false, error:'no_text_blocks_found', title });
     }
 
-    const html = `<div style="max-width:900px;margin:0 auto;padding:12px;line-height:1.75;color:#111;background:#fff;">${blocks
-      .map(t => `<p>${t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`)
+    const html = `<div style="max-width:980px;margin:0 auto;padding:8px 4px;line-height:1.9;color:#e8ecff;background:#0b1020;font-size:22px;">${blocks
+      .map(t => `<p style=\"margin:0 0 14px;\">${t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`)
       .join('')}</div>`;
 
     return res.json({ ok:true, title, html, mode: 'fallback-text', paragraphsCount: blocks.length });

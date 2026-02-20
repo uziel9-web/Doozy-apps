@@ -24,12 +24,12 @@
       .warn { color:#ffd27f; text-align:center; }
       .reader { position:fixed; inset:0; background:rgba(5,8,18,.92); display:none; z-index:999; }
       .reader.open { display:block; }
-      .reader-box { max-width:900px; height:100%; margin:0 auto; padding:14px; overflow:auto; }
-      .reader-card { background:#141b34; border:1px solid #283157; border-radius:12px; padding:14px; }
-      .reader-title { font-size:24px; font-weight:700; margin-bottom:8px; }
-      .reader-actions { display:flex; gap:8px; margin-bottom:10px; }
+      .reader-box { max-width:100%; height:100%; margin:0; padding:0; overflow:auto; }
+      .reader-card { background:#0b1020; border:0; border-radius:0; padding:12px 12px 24px; min-height:100%; }
+      .reader-title { font-size:30px; font-weight:700; margin:12px 0 8px; text-align:right; }
+      .reader-actions { display:flex; gap:8px; margin-bottom:6px; justify-content:flex-start; }
       .reader-p { color:#dfe5ff; line-height:1.7; margin:0 0 10px; }
-      .webview-content { width:100%; min-height:70vh; border:0; background:#fff; border-radius:8px; color:#111; padding:10px; box-sizing:border-box; overflow:auto; }
+      .webview-content { width:100%; min-height:78vh; border:0; background:#0b1020; border-radius:0; color:#e8ecff; padding:0 2px 24px; box-sizing:border-box; overflow:auto; }
       .dev-only { display:none; }
     </style>
   </head>
@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 04:35</div>
+    <div id="footerBrand" class="footer-brand">Doozy Software Inc. · Build 2026-02-20 04:55</div>
 
     <script>
       const statusEl = document.getElementById('status');
