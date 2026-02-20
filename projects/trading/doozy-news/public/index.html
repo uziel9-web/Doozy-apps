@@ -149,13 +149,14 @@
             <option value="biz">כלכלה</option>
             <option value="general">חדשות כלליות</option>
             <option value="tech">טכנולוגיה</option>
+            <option value="security">ביטחוני</option>
           </select>
           <button id="refreshBtn" class="refresh-btn">רענן חדשות</button>
           <select id="themeSelect" class="mini-select">
             <option value="night">Night</option>
-            <option value="jungle-love">Jungle Calm</option>
-            <option value="jungle-pop">Jungle Pop</option>
-            <option value="jungle-neon">Jungle Neon</option>
+            <option value="jungle-love">Calm</option>
+            <option value="jungle-pop">Pop</option>
+            <option value="jungle-neon">Neon</option>
             <option value="light-clean">Light</option>
             <option value="sepia-news">Sepia</option>
             <option value="slate-pro">Slate</option>
@@ -334,8 +335,15 @@
           /הנפקה/, /מנכ["״]ל/, /cfo/i
         ];
 
+        const securityPatterns = [
+          /ביטחו/, /צבא/, /צה["״]ל/, /פיקוד/, /חיל האוויר/, /חיל הים/, /אמ["״]ן/, /שב["״]כ/,
+          /מוסד/, /מילואים/, /מלחמ/, /ירי/, /טיל/, /רקט/, /כטב["״]מ/, /רחפנ/, /יירוט/,
+          /גבול/, /חדירה/, /פיגוע/, /טרור/, /חמאס/, /חיזבאללה/, /איראן/, /סוריה/, /עזה/, /לבנון/
+        ];
+
         let techScore = countHits(techPatterns) * 2;
         let bizScore = countHits(bizPatterns) * 2;
+        let securityScore = countHits(securityPatterns) * 2;
 
         if (['כלכליסט', 'גלובס', 'דה מרקר', 'themarker', 'calcalist', 'globes'].some(s => src.includes(s.toLowerCase()))) {
           bizScore += 3;
@@ -343,12 +351,16 @@
 
         if (/(שוק|בורסה|מניה|ריבית|אינפלציה|דולר|שקל)/i.test(title)) bizScore += 2;
         if (/(טכנולוג|הייטק|בינה|ai|סייבר|שבב|ענן|סטארט)/i.test(title)) techScore += 2;
+        if (/(ביטחו|מלחמ|צה["״]ל|טרור|חמאס|חיזבאללה|טיל|רקט|ירי|פיגוע)/i.test(title)) securityScore += 3;
 
-        if (techScore === 0 && bizScore === 0) return 'general';
-        if (techScore >= bizScore + 1) return 'tech';
-        if (bizScore >= techScore + 1) return 'biz';
+        const top = Math.max(techScore, bizScore, securityScore);
+        if (top === 0) return 'general';
+        if (securityScore === top && securityScore >= bizScore + 1 && securityScore >= techScore + 1) return 'security';
+        if (techScore === top && techScore >= bizScore + 1) return 'tech';
+        if (bizScore === top && bizScore >= techScore + 1) return 'biz';
 
         // Tie-breaker
+        if (/(ביטחו|מלחמ|צה["״]ל|טרור|חמאס|חיזבאללה|טיל|רקט|פיגוע)/i.test(title)) return 'security';
         if (/(טכנולוג|הייטק|ai|סייבר|בינה)/i.test(title)) return 'tech';
         if (/(בורסה|מניה|שוק ההון|ריבית|אינפלציה)/i.test(title)) return 'biz';
         return 'general';
