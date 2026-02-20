@@ -21,7 +21,9 @@ const SOURCES = {
     { name: 'גלובס', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2' },
     { name: 'דה מרקר', url: 'https://www.themarker.com/cmlink/1.628' },
     { name: 'ynet', url: 'https://www.ynet.co.il/Integration/StoryRss2.xml' },
-    { name: 'N12', url: 'https://www.mako.co.il/rss-news?partner=rss' }
+    { name: 'N12', url: 'https://www.mako.co.il/rss-news?partner=rss' },
+    { name: 'וואלה', url: 'https://rss.walla.co.il/feed/1' },
+    { name: 'מעריב', url: 'https://www.maariv.co.il/Rss/RssFeedsMivzakim' }
   ],
   biz: [
     { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
@@ -30,7 +32,9 @@ const SOURCES = {
   ],
   general: [
     { name: 'ynet', url: 'https://www.ynet.co.il/Integration/StoryRss2.xml' },
-    { name: 'N12', url: 'https://www.mako.co.il/rss-news?partner=rss' }
+    { name: 'N12', url: 'https://www.mako.co.il/rss-news?partner=rss' },
+    { name: 'וואלה', url: 'https://rss.walla.co.il/feed/1' },
+    { name: 'מעריב', url: 'https://www.maariv.co.il/Rss/RssFeedsMivzakim' }
   ],
   tech: [
     { name: 'כלכליסט', url: 'https://www.calcalist.co.il/GeneralRSS/0,16335,L-8,00.xml' },
