@@ -260,7 +260,16 @@
               try { return /(^|\.)maariv\.co\.il$/i.test(new URL(url).hostname); } catch { return false; }
             })();
             ref.addEventListener('loadstop', () => {
-              if (isMaariv) return;
+              if (isMaariv) {
+                const maarivCss = `
+                  (function(){
+                    const st=document.createElement('style');
+                    st.textContent='iframe[src*="doubleclick"],iframe[src*="googlesyndication"],iframe[src*="googleadservices"],iframe[src*="taboola"],iframe[src*="outbrain"],ins.adsbygoogle,.adsbygoogle,[id^="google_ads"],[id*="taboola"],[class*="taboola"],[class*="outbrain"],[data-ad-slot],[data-google-query-id],.ad,.ads,.advertisement{display:none !important;visibility:hidden !important;max-height:0 !important;overflow:hidden !important;}';
+                    document.head && document.head.appendChild(st);
+                  })();`;
+                ref.executeScript({ code: maarivCss });
+                return;
+              }
               const js = `
                 (function(){
                   const sels=[
