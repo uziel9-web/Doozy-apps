@@ -256,7 +256,11 @@
             ].join(',');
             const ref = cordova.InAppBrowser.open(url, '_blank', opts);
 
+            const isMaariv = (() => {
+              try { return /(^|\.)maariv\.co\.il$/i.test(new URL(url).hostname); } catch { return false; }
+            })();
             ref.addEventListener('loadstop', () => {
+              if (isMaariv) return;
               const js = `
                 (function(){
                   const sels=[
